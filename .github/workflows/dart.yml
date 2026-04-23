@@ -19,6 +19,9 @@ jobs:
           flutter-version-file: pubspec.yaml
       - run: flutter pub get
       - run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+      # Golden tests (test/golden/) are intentionally excluded: goldens are
+      # generated locally on macOS and fail on Linux CI due to font/Material
+      # rendering differences. They remain runnable locally with `flutter test`.
       - run: flutter test test/unit test/widget
       - run: flutter build apk --debug
       - run: flutter build appbundle --debug
