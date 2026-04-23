@@ -84,7 +84,12 @@ class _SettingsState extends State<Settings> {
     final secretsService = Provider.of<SecureSecretsService>(context, listen: false);
     final hfToken = await secretsService.read(huggingFaceAccessTokenSecret);
     if (!mounted) return;
-    _downloadSub?.cancel();
+    final previousDownloadSub = _downloadSub;
+    _downloadSub = null;
+    if (previousDownloadSub != null) {
+      await previousDownloadSub.cancel();
+    }
+    if (!mounted) return;
     setState(() {
       _downloadProgress = const GemmaDownloadProgress(percent: 0, filename: '');
       _downloadError = null;
