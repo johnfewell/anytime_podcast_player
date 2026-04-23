@@ -882,6 +882,7 @@ class _SettingsState extends State<Settings> {
 
   String _huggingFaceTokenSubtitle(AsyncSnapshot<String?> snapshot) {
     if (snapshot.connectionState != ConnectionState.done) return 'Loading…';
+    if (snapshot.hasError) return 'Unable to read stored token — tap to retry';
     final hasToken = snapshot.data?.trim().isNotEmpty ?? false;
     if (hasToken) return '•••••••• (set)';
     return 'Optional — required only for gated model files';

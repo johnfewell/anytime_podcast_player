@@ -147,6 +147,13 @@ void main() {
       expect(find.text('Optional — required only for gated model files'), findsOneWidget);
     });
 
+    testWidgets('renders an error subtitle when the stored token cannot be read', (tester) async {
+      secrets.readError = StateError('secure storage locked');
+      await pumpSettings(tester);
+
+      expect(find.text('Unable to read stored token — tap to retry'), findsOneWidget);
+    });
+
     testWidgets('Save writes the token and refreshes the subtitle', (tester) async {
       await pumpSettings(tester);
 
