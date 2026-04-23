@@ -6,6 +6,7 @@ import 'dart:io';
 
 import 'package:anytime/services/analysis/background/background_analysis_dispatcher.dart';
 import 'package:anytime/services/settings/mobile_settings_service.dart';
+import 'package:anytime/services/transcription/local_transcription_engine.dart';
 import 'package:anytime/ui/anytime_podcast_app.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -25,6 +26,12 @@ void main() async {
 
   Logger.root.onRecord.listen((record) {
     print('${record.level.name}: - ${record.time}: ${record.loggerName}: ${record.message}');
+    if (record.error != null) {
+      print('  error: ${record.error}');
+    }
+    if (record.stackTrace != null) {
+      print('  stack: ${record.stackTrace}');
+    }
   });
 
   var mobileSettingsService = (await MobileSettingsService.instance())!;
@@ -35,9 +42,12 @@ void main() async {
     await Workmanager().initialize(backgroundAnalysisCallbackDispatcher);
   }
 
+  final localTranscriptionService = await buildLocalTranscriptionService();
+
   runApp(AnytimePodcastApp(
     mobileSettingsService: mobileSettingsService,
     certificateAuthorityBytes: certificateAuthorityBytes,
+    localTranscriptionService: localTranscriptionService,
   ));
 }
 
