@@ -25,6 +25,8 @@ jobs:
           flutter-version-file: pubspec.yaml
       - name: Build
         run: flutter pub get
+      - name: Tests with coverage
+        run: flutter test --coverage test/unit test/widget
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6.0.0
         env:

@@ -23,11 +23,17 @@ import 'package:anytime/ui/library/opml_export.dart';
 import 'package:anytime/ui/library/opml_import.dart';
 import 'package:anytime/ui/widgets/action_text.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dialogs/flutter_dialogs.dart';
 import 'package:logging/logging.dart';
 import 'package:provider/provider.dart';
+
+/// Test seam: tests running on non-Android hosts set this to exercise the
+/// Android-gated background-analysis UI without faking `dart:io.Platform`.
+@visibleForTesting
+bool Function()? debugBackgroundAnalysisSupportedOverride;
 
 /// This is the settings page and allows the user to select various options for the app.
 class Settings extends StatefulWidget {
@@ -916,7 +922,11 @@ class _SettingsState extends State<Settings> {
             onPressed: () async {
               await secretsService.delete(huggingFaceAccessTokenSecret);
               if (dialogContext.mounted) Navigator.pop(dialogContext);
-              if (mounted) setState(() => _hfTokenFuture = _readHuggingFaceToken());
+              if (!mounted) return;
+              final refreshed = _readHuggingFaceToken();
+              setState(() {
+                _hfTokenFuture = refreshed;
+              });
             },
             child: const Text('Clear'),
           ),
@@ -932,7 +942,11 @@ class _SettingsState extends State<Settings> {
                 );
               }
               if (dialogContext.mounted) Navigator.pop(dialogContext);
-              if (mounted) setState(() => _hfTokenFuture = _readHuggingFaceToken());
+              if (!mounted) return;
+              final refreshed = _readHuggingFaceToken();
+              setState(() {
+                _hfTokenFuture = refreshed;
+              });
             },
             child: const Text('Save'),
           ),
@@ -999,6 +1013,8 @@ class _SettingsState extends State<Settings> {
   }
 
   bool _backgroundAnalysisSupported() {
+    final override = debugBackgroundAnalysisSupportedOverride;
+    if (override != null) return override();
     // Background Gemma 4 requires Android 8+ (SDK 26) for WorkManager + model
     // runtime. Other platforms have no background pipeline at all.
     return Platform.isAndroid;
