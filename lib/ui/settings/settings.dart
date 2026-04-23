@@ -23,7 +23,6 @@ import 'package:anytime/ui/library/opml_export.dart';
 import 'package:anytime/ui/library/opml_import.dart';
 import 'package:anytime/ui/widgets/action_text.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dialogs/flutter_dialogs.dart';
@@ -284,53 +283,7 @@ class _SettingsState extends State<Settings> {
                 ),
                 const SizedBox(height: 28.0),
                 const _SectionLabel(label: 'Background ad analysis'),
-                _SettingsCard(
-                  children: [
-                    _ToggleSettingsTile(
-                      title: 'Auto-analyze downloaded episodes',
-                      subtitle: _backgroundAnalysisSubtitle(),
-                      value: settings.backgroundAnalysisEnabled && _backgroundAnalysisSupported(),
-                      onChanged: _backgroundAnalysisSupported()
-                          ? (enabled) => _handleBackgroundAnalysisToggle(settingsBloc, settings, enabled)
-                          : (_) {},
-                    ),
-                    if (settings.backgroundAnalysisEnabled && _backgroundAnalysisSupported()) ...[
-                      _ActionSettingsTile(
-                        icon: Icons.memory_outlined,
-                        title: 'On-device model',
-                        subtitle: _backgroundLocalModelLabel(settings.backgroundLocalModel),
-                        onTap: () => _showBackgroundLocalModelDialog(settings),
-                      ),
-                      _buildGemmaInstallTile(settings),
-                      FutureBuilder<String?>(
-                        future: _hfTokenFuture ??= _readHuggingFaceToken(),
-                        builder: (context, snapshot) {
-                          final isLoading = snapshot.connectionState != ConnectionState.done;
-                          final hasToken = !isLoading && (snapshot.data?.trim().isNotEmpty ?? false);
-                          return _ActionSettingsTile(
-                            icon: Icons.vpn_key_outlined,
-                            title: 'HuggingFace token',
-                            subtitle: isLoading
-                                ? 'Loading…'
-                                : hasToken
-                                    ? '•••••••• (set)'
-                                    : 'Optional — required only for gated model files',
-                            onTap: _showHuggingFaceTokenDialog,
-                          );
-                        },
-                      ),
-                      if (settings.showAnalysisHistory)
-                        _ActionSettingsTile(
-                          icon: Icons.play_arrow_outlined,
-                          title: 'Run background analysis now (dev)',
-                          subtitle: _runningBackgroundAnalysis
-                              ? 'Running…'
-                              : 'Processes the next queued episode on the UI isolate',
-                          onTap: _runBackgroundAnalysisNow,
-                        ),
-                    ],
-                  ],
-                ),
+                _buildBackgroundAnalysisCard(settingsBloc, settings),
                 const SizedBox(height: 28.0),
                 const _SectionLabel(label: 'On-demand analysis'),
                 _SettingsCard(
@@ -813,6 +766,52 @@ class _SettingsState extends State<Settings> {
     await _startGemmaDownload(variant);
   }
 
+  Widget _buildBackgroundAnalysisCard(SettingsBloc settingsBloc, AppSettings settings) {
+    final supported = _backgroundAnalysisSupported();
+    final sectionEnabled = settings.backgroundAnalysisEnabled && supported;
+    return _SettingsCard(
+      children: [
+        _ToggleSettingsTile(
+          title: 'Auto-analyze downloaded episodes',
+          subtitle: _backgroundAnalysisSubtitle(),
+          value: sectionEnabled,
+          onChanged: supported
+              ? (enabled) => _handleBackgroundAnalysisToggle(settingsBloc, settings, enabled)
+              : (_) {},
+        ),
+        if (sectionEnabled) ...[
+          _ActionSettingsTile(
+            icon: Icons.memory_outlined,
+            title: 'On-device model',
+            subtitle: _backgroundLocalModelLabel(settings.backgroundLocalModel),
+            onTap: () => _showBackgroundLocalModelDialog(settings),
+          ),
+          _buildGemmaInstallTile(settings),
+          FutureBuilder<String?>(
+            future: _hfTokenFuture ??= _readHuggingFaceToken(),
+            builder: (context, snapshot) {
+              return _ActionSettingsTile(
+                icon: Icons.vpn_key_outlined,
+                title: 'HuggingFace token',
+                subtitle: _huggingFaceTokenSubtitle(snapshot),
+                onTap: _showHuggingFaceTokenDialog,
+              );
+            },
+          ),
+          if (settings.showAnalysisHistory)
+            _ActionSettingsTile(
+              icon: Icons.play_arrow_outlined,
+              title: 'Run background analysis now (dev)',
+              subtitle: _runningBackgroundAnalysis
+                  ? 'Running…'
+                  : 'Processes the next queued episode on the UI isolate',
+              onTap: _runBackgroundAnalysisNow,
+            ),
+        ],
+      ],
+    );
+  }
+
   Widget _buildGemmaInstallTile(AppSettings settings) {
     final variant = settings.backgroundLocalModel;
     if (_checkedVariant != variant && _downloadSub == null) {
@@ -881,11 +880,23 @@ class _SettingsState extends State<Settings> {
     return Provider.of<SecureSecretsService>(context, listen: false).read(huggingFaceAccessTokenSecret);
   }
 
+  String _huggingFaceTokenSubtitle(AsyncSnapshot<String?> snapshot) {
+    if (snapshot.connectionState != ConnectionState.done) return 'Loading…';
+    final hasToken = snapshot.data?.trim().isNotEmpty ?? false;
+    if (hasToken) return '•••••••• (set)';
+    return 'Optional — required only for gated model files';
+  }
+
   Future<void> _showHuggingFaceTokenDialog() async {
     final secretsService = Provider.of<SecureSecretsService>(context, listen: false);
     final existing = await secretsService.read(huggingFaceAccessTokenSecret);
     final controller = TextEditingController();
     if (!mounted) return;
+
+    final hasExisting = existing?.trim().isNotEmpty ?? false;
+    final blurb = hasExisting
+        ? 'A token is already stored securely. Save a new one to replace it, or clear it below.'
+        : 'Required only for gated model files. Paste a token from huggingface.co/settings/tokens.';
 
     await showPlatformDialog<void>(
       context: context,
@@ -896,11 +907,7 @@ class _SettingsState extends State<Settings> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              (existing?.trim().isNotEmpty ?? false)
-                  ? 'A token is already stored securely. Save a new one to replace it, or clear it below.'
-                  : 'Required only for gated model files. Paste a token from huggingface.co/settings/tokens.',
-            ),
+            Text(blurb),
             const SizedBox(height: 12),
             TextField(
               controller: controller,
@@ -919,40 +926,55 @@ class _SettingsState extends State<Settings> {
             child: const Text('Cancel'),
           ),
           TextButton(
-            onPressed: () async {
-              await secretsService.delete(huggingFaceAccessTokenSecret);
-              if (dialogContext.mounted) Navigator.pop(dialogContext);
-              if (!mounted) return;
-              final refreshed = _readHuggingFaceToken();
-              setState(() {
-                _hfTokenFuture = refreshed;
-              });
-            },
+            onPressed: () => _handleClearHuggingFaceToken(dialogContext, secretsService),
             child: const Text('Clear'),
           ),
           TextButton(
-            onPressed: () async {
-              final value = controller.text.trim();
-              if (value.isEmpty) {
-                await secretsService.delete(huggingFaceAccessTokenSecret);
-              } else {
-                await secretsService.write(
-                  key: huggingFaceAccessTokenSecret,
-                  value: value,
-                );
-              }
-              if (dialogContext.mounted) Navigator.pop(dialogContext);
-              if (!mounted) return;
-              final refreshed = _readHuggingFaceToken();
-              setState(() {
-                _hfTokenFuture = refreshed;
-              });
-            },
+            onPressed: () => _handleSaveHuggingFaceToken(
+              dialogContext,
+              secretsService,
+              controller.text,
+            ),
             child: const Text('Save'),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _handleClearHuggingFaceToken(
+    BuildContext dialogContext,
+    SecureSecretsService secretsService,
+  ) async {
+    await secretsService.delete(huggingFaceAccessTokenSecret);
+    if (dialogContext.mounted) Navigator.pop(dialogContext);
+    _refreshHuggingFaceTokenFuture();
+  }
+
+  Future<void> _handleSaveHuggingFaceToken(
+    BuildContext dialogContext,
+    SecureSecretsService secretsService,
+    String rawValue,
+  ) async {
+    final value = rawValue.trim();
+    if (value.isEmpty) {
+      await secretsService.delete(huggingFaceAccessTokenSecret);
+    } else {
+      await secretsService.write(
+        key: huggingFaceAccessTokenSecret,
+        value: value,
+      );
+    }
+    if (dialogContext.mounted) Navigator.pop(dialogContext);
+    _refreshHuggingFaceTokenFuture();
+  }
+
+  void _refreshHuggingFaceTokenFuture() {
+    if (!mounted) return;
+    final refreshed = _readHuggingFaceToken();
+    setState(() {
+      _hfTokenFuture = refreshed;
+    });
   }
 
   Future<bool> _showBackgroundAnalysisDiskCostDialog(BackgroundAnalysisLocalModel variant) async {

@@ -7,7 +7,6 @@ import 'dart:async';
 import 'package:anytime/bloc/settings/settings_bloc.dart';
 import 'package:anytime/entities/app_settings.dart';
 import 'package:anytime/l10n/L.dart';
-import 'package:anytime/services/analysis/background/analysis_model_catalog.dart';
 import 'package:anytime/services/analysis/background/background_analysis_scheduler.dart';
 import 'package:anytime/services/analysis/background/model_download_service.dart';
 import 'package:anytime/services/secrets/secure_secrets_service.dart';
@@ -20,6 +19,13 @@ import 'package:provider/provider.dart';
 
 import '../unit/mocks/mock_notification_service.dart';
 import '../unit/mocks/mock_settings_service.dart';
+
+const _hfTokenTitle = 'HuggingFace token';
+const _hfTokenSet = '•••••••• (set)';
+const _downloadGemmaModel = 'Download Gemma model';
+const _gemmaModelInstalled = 'Gemma model installed';
+const _downloadFailed = 'Download failed';
+const _gemmaTaskFilename = 'gemma.task';
 
 void main() {
   late _FakeSecretsService secrets;
@@ -132,7 +138,7 @@ void main() {
       secrets.values[huggingFaceAccessTokenSecret] = 'hf_existing';
       await pumpSettings(tester);
 
-      expect(find.text('•••••••• (set)'), findsOneWidget);
+      expect(find.text(_hfTokenSet), findsOneWidget);
     });
 
     testWidgets('renders the empty subtitle when no token is stored', (tester) async {
@@ -144,7 +150,7 @@ void main() {
     testWidgets('Save writes the token and refreshes the subtitle', (tester) async {
       await pumpSettings(tester);
 
-      await tester.tap(find.text('HuggingFace token'));
+      await tester.tap(find.text(_hfTokenTitle));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'hf_new_token');
@@ -152,14 +158,14 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(secrets.values[huggingFaceAccessTokenSecret], 'hf_new_token');
-      expect(find.text('•••••••• (set)'), findsOneWidget);
+      expect(find.text(_hfTokenSet), findsOneWidget);
     });
 
     testWidgets('Saving an empty value deletes the stored token', (tester) async {
       secrets.values[huggingFaceAccessTokenSecret] = 'hf_old';
       await pumpSettings(tester);
 
-      await tester.tap(find.text('HuggingFace token'));
+      await tester.tap(find.text(_hfTokenTitle));
       await tester.pumpAndSettle();
 
       // Empty input in the dialog's TextField.
@@ -174,14 +180,14 @@ void main() {
       secrets.values[huggingFaceAccessTokenSecret] = 'hf_existing';
       await pumpSettings(tester);
 
-      await tester.tap(find.text('HuggingFace token'));
+      await tester.tap(find.text(_hfTokenTitle));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Clear'));
       await tester.pumpAndSettle();
 
       expect(secrets.values.containsKey(huggingFaceAccessTokenSecret), isFalse);
-      expect(find.text('•••••••• (set)'), findsNothing);
+      expect(find.text(_hfTokenSet), findsNothing);
     });
   });
 
@@ -190,37 +196,37 @@ void main() {
       gemma.installed = false;
       await pumpSettings(tester);
 
-      expect(find.text('Download Gemma model'), findsOneWidget);
+      expect(find.text(_downloadGemmaModel), findsOneWidget);
     });
 
     testWidgets('renders the installed state when model is already present', (tester) async {
       gemma.installed = true;
       await pumpSettings(tester);
 
-      expect(find.text('Gemma model installed'), findsOneWidget);
+      expect(find.text(_gemmaModelInstalled), findsOneWidget);
     });
 
     testWidgets('tapping the download tile starts a download and streams progress', (tester) async {
       gemma.installed = false;
       await pumpSettings(tester);
 
-      await tester.tap(find.text('Download Gemma model'));
+      await tester.tap(find.text(_downloadGemmaModel));
       await tester.pump();
 
       expect(gemma.downloadStartCount, 1);
       expect(gemma.lastHuggingFaceToken, isNull);
 
-      gemma.emitProgress(const GemmaDownloadProgress(percent: 42, filename: 'gemma.task'));
+      gemma.emitProgress(const GemmaDownloadProgress(percent: 42, filename: _gemmaTaskFilename));
       await tester.pump();
 
       expect(find.textContaining('Downloading Gemma model (42%)'), findsOneWidget);
-      expect(find.text('gemma.task'), findsOneWidget);
+      expect(find.text(_gemmaTaskFilename), findsOneWidget);
 
       // Complete the download; tile should flip to installed state.
       gemma.completeDownload();
       await tester.pumpAndSettle();
 
-      expect(find.text('Gemma model installed'), findsOneWidget);
+      expect(find.text(_gemmaModelInstalled), findsOneWidget);
     });
 
     testWidgets('passes the stored HuggingFace token when starting a download', (tester) async {
@@ -228,7 +234,7 @@ void main() {
       gemma.installed = false;
       await pumpSettings(tester);
 
-      await tester.tap(find.text('Download Gemma model'));
+      await tester.tap(find.text(_downloadGemmaModel));
       await tester.pump();
 
       expect(gemma.lastHuggingFaceToken, 'hf_live');
@@ -238,17 +244,17 @@ void main() {
       gemma.installed = false;
       await pumpSettings(tester);
 
-      await tester.tap(find.text('Download Gemma model'));
+      await tester.tap(find.text(_downloadGemmaModel));
       await tester.pump();
 
       gemma.emitError('network down');
       await tester.pumpAndSettle();
 
-      expect(find.text('Download failed'), findsOneWidget);
+      expect(find.text(_downloadFailed), findsOneWidget);
       expect(find.textContaining('Tap to retry'), findsOneWidget);
 
       // Retry — should kick off another download.
-      await tester.tap(find.text('Download failed'));
+      await tester.tap(find.text(_downloadFailed));
       await tester.pump();
       expect(gemma.downloadStartCount, 2);
     });
@@ -258,20 +264,20 @@ void main() {
       gemma.installed = false;
       await pumpSettings(tester);
 
-      await tester.tap(find.text('Download Gemma model'));
+      await tester.tap(find.text(_downloadGemmaModel));
       await tester.pumpAndSettle();
 
       expect(gemma.downloadStartCount, 0);
-      expect(find.text('Download failed'), findsOneWidget);
+      expect(find.text(_downloadFailed), findsOneWidget);
     });
 
     testWidgets('cancel tile deletes the model and resets state', (tester) async {
       gemma.installed = false;
       await pumpSettings(tester);
 
-      await tester.tap(find.text('Download Gemma model'));
+      await tester.tap(find.text(_downloadGemmaModel));
       await tester.pumpAndSettle();
-      gemma.emitProgress(const GemmaDownloadProgress(percent: 10, filename: 'gemma.task'));
+      gemma.emitProgress(const GemmaDownloadProgress(percent: 10, filename: _gemmaTaskFilename));
       await tester.pumpAndSettle();
 
       final downloadingTile = find.textContaining('Downloading Gemma model').first;
@@ -288,14 +294,14 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(gemma.deleteCalls, 1);
-      expect(find.text('Download Gemma model'), findsOneWidget);
+      expect(find.text(_downloadGemmaModel), findsOneWidget);
     });
 
     testWidgets('re-download confirmation dialog kicks off a new download', (tester) async {
       gemma.installed = true;
       await pumpSettings(tester);
 
-      await tester.tap(find.text('Gemma model installed'));
+      await tester.tap(find.text(_gemmaModelInstalled));
       await tester.pumpAndSettle();
 
       expect(find.text('Re-download model?'), findsOneWidget);
@@ -311,7 +317,7 @@ void main() {
       gemma.installed = true;
       await pumpSettings(tester);
 
-      await tester.tap(find.text('Gemma model installed'));
+      await tester.tap(find.text(_gemmaModelInstalled));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Cancel'));
