@@ -110,7 +110,10 @@ Future<void> runBackgroundAnalysisOnce() async {
       await analyzer.close();
     }
   } finally {
-    await analysisService.dispose();
-    await repository.close();
+    try {
+      await analysisService.dispose();
+    } finally {
+      await repository.close();
+    }
   }
 }
