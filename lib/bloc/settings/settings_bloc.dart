@@ -51,7 +51,6 @@ class SettingsBloc extends Bloc {
   final BehaviorSubject<bool> _backgroundAnalysisDiskCostAccepted = BehaviorSubject<bool>();
   final BehaviorSubject<bool> _onDemandAnalysisEnabled = BehaviorSubject<bool>();
   final BehaviorSubject<bool> _showAnalysisHistory = BehaviorSubject<bool>();
-  final BehaviorSubject<String> _huggingFaceAccessToken = BehaviorSubject<String>();
 
   var _currentSettings = AppSettings.sensibleDefaults();
 
@@ -106,7 +105,6 @@ class SettingsBloc extends Bloc {
       backgroundAnalysisDiskCostAccepted: settingsService.backgroundAnalysisDiskCostAccepted,
       onDemandAnalysisEnabled: settingsService.onDemandAnalysisEnabled,
       showAnalysisHistory: settingsService.showAnalysisHistory,
-      huggingFaceAccessToken: settingsService.huggingFaceAccessToken,
     );
 
     _settings.add(_currentSettings);
@@ -318,11 +316,21 @@ class SettingsBloc extends Bloc {
       settingsService.showAnalysisHistory = show;
     });
 
-    _huggingFaceAccessToken.listen((token) {
-      _currentSettings = _currentSettings.copyWith(huggingFaceAccessToken: token);
-      _settings.add(_currentSettings);
-      settingsService.huggingFaceAccessToken = token;
-    });
+    // Reconcile the WorkManager schedule with the persisted setting on
+    // startup; the _backgroundAnalysisEnabled listener only fires on toggle.
+    _reconcileBackgroundAnalysisSchedule(settingsService.backgroundAnalysisEnabled);
+  }
+
+  Future<void> _reconcileBackgroundAnalysisSchedule(bool enabled) async {
+    try {
+      if (enabled) {
+        await backgroundAnalysisScheduler.schedule();
+      } else {
+        await backgroundAnalysisScheduler.cancel();
+      }
+    } catch (error, stack) {
+      log.warning('Failed to reconcile background analysis schedule', error, stack);
+    }
   }
 
   void _initNotifications() async {
@@ -400,8 +408,6 @@ class SettingsBloc extends Bloc {
 
   void Function(bool) get setShowAnalysisHistory => _showAnalysisHistory.add;
 
-  void Function(String) get setHuggingFaceAccessToken => _huggingFaceAccessToken.add;
-
   AppSettings get currentSettings => _settings.value;
 
   @override
@@ -437,7 +443,6 @@ class SettingsBloc extends Bloc {
     _backgroundAnalysisDiskCostAccepted.close();
     _onDemandAnalysisEnabled.close();
     _showAnalysisHistory.close();
-    _huggingFaceAccessToken.close();
     _settings.close();
   }
 }

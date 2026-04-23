@@ -79,8 +79,11 @@ class _SettingsState extends State<Settings> {
     });
   }
 
-  void _startGemmaDownload(BackgroundAnalysisLocalModel variant, String? hfToken) {
+  Future<void> _startGemmaDownload(BackgroundAnalysisLocalModel variant) async {
     final service = Provider.of<GemmaModelDownloadService>(context, listen: false);
+    final secretsService = Provider.of<SecureSecretsService>(context, listen: false);
+    final hfToken = await secretsService.read(huggingFaceAccessTokenSecret);
+    if (!mounted) return;
     _downloadSub?.cancel();
     setState(() {
       _downloadProgress = const GemmaDownloadProgress(percent: 0, filename: '');
@@ -278,13 +281,20 @@ class _SettingsState extends State<Settings> {
                         onTap: () => _showBackgroundLocalModelDialog(settings),
                       ),
                       _buildGemmaInstallTile(settings),
-                      _ActionSettingsTile(
-                        icon: Icons.vpn_key_outlined,
-                        title: 'HuggingFace token',
-                        subtitle: settings.huggingFaceAccessToken.isEmpty
-                            ? 'Optional — required only for gated model files'
-                            : '•••••••• (set)',
-                        onTap: () => _showHuggingFaceTokenDialog(settings, settingsBloc),
+                      FutureBuilder<String?>(
+                        future: Provider.of<SecureSecretsService>(context, listen: false)
+                            .read(huggingFaceAccessTokenSecret),
+                        builder: (context, snapshot) {
+                          final hasToken = (snapshot.data?.trim().isNotEmpty ?? false);
+                          return _ActionSettingsTile(
+                            icon: Icons.vpn_key_outlined,
+                            title: 'HuggingFace token',
+                            subtitle: hasToken
+                                ? '•••••••• (set)'
+                                : 'Optional — required only for gated model files',
+                            onTap: _showHuggingFaceTokenDialog,
+                          );
+                        },
                       ),
                       if (settings.showAnalysisHistory)
                         _ActionSettingsTile(
@@ -777,7 +787,7 @@ class _SettingsState extends State<Settings> {
       });
       return;
     }
-    _startGemmaDownload(variant, settings.huggingFaceAccessToken);
+    _startGemmaDownload(variant);
   }
 
   Widget _buildGemmaInstallTile(AppSettings settings) {
@@ -803,7 +813,7 @@ class _SettingsState extends State<Settings> {
         icon: Icons.error_outline,
         title: 'Download failed',
         subtitle: 'Tap to retry — ${_downloadError!}',
-        onTap: () => _startGemmaDownload(variant, settings.huggingFaceAccessToken),
+        onTap: () => _startGemmaDownload(variant),
       );
     }
 
@@ -821,7 +831,7 @@ class _SettingsState extends State<Settings> {
       title: 'Download Gemma model',
       subtitle:
           '${AnalysisModelCatalog.formatBytes(AnalysisModelCatalog.approximateSizeBytesFor(variant))} — tap to download',
-      onTap: () => _startGemmaDownload(variant, settings.huggingFaceAccessToken),
+      onTap: () => _startGemmaDownload(variant),
     );
   }
 
@@ -841,12 +851,16 @@ class _SettingsState extends State<Settings> {
     if (confirmed != true) return;
     await _cancelGemmaDownload(variant);
     if (!mounted) return;
-    _startGemmaDownload(variant, settings.huggingFaceAccessToken);
+    _startGemmaDownload(variant);
   }
 
-  Future<void> _showHuggingFaceTokenDialog(AppSettings settings, SettingsBloc settingsBloc) async {
-    final controller = TextEditingController(text: settings.huggingFaceAccessToken);
-    final result = await showPlatformDialog<String>(
+  Future<void> _showHuggingFaceTokenDialog() async {
+    final secretsService = Provider.of<SecureSecretsService>(context, listen: false);
+    final existing = await secretsService.read(huggingFaceAccessTokenSecret);
+    final controller = TextEditingController();
+    if (!mounted) return;
+
+    await showPlatformDialog<void>(
       context: context,
       useRootNavigator: false,
       builder: (dialogContext) => AlertDialog(
@@ -855,13 +869,16 @@ class _SettingsState extends State<Settings> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Required only for gated model files. Paste a token from huggingface.co/settings/tokens.',
+            Text(
+              (existing?.trim().isNotEmpty ?? false)
+                  ? 'A token is already stored securely. Save a new one to replace it, or clear it below.'
+                  : 'Required only for gated model files. Paste a token from huggingface.co/settings/tokens.',
             ),
             const SizedBox(height: 12),
             TextField(
               controller: controller,
               autofocus: true,
+              obscureText: true,
               decoration: const InputDecoration(
                 hintText: 'hf_...',
                 border: OutlineInputBorder(),
@@ -870,17 +887,37 @@ class _SettingsState extends State<Settings> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(null), child: const Text('Cancel')),
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(controller.text.trim()),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              await secretsService.delete(huggingFaceAccessTokenSecret);
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+              if (mounted) setState(() {});
+            },
+            child: const Text('Clear'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final value = controller.text.trim();
+              if (value.isEmpty) {
+                await secretsService.delete(huggingFaceAccessTokenSecret);
+              } else {
+                await secretsService.write(
+                  key: huggingFaceAccessTokenSecret,
+                  value: value,
+                );
+              }
+              if (dialogContext.mounted) Navigator.pop(dialogContext);
+              if (mounted) setState(() {});
+            },
             child: const Text('Save'),
           ),
         ],
       ),
     );
-    if (result != null) {
-      settingsBloc.setHuggingFaceAccessToken(result);
-    }
   }
 
   Future<bool> _showBackgroundAnalysisDiskCostDialog(BackgroundAnalysisLocalModel variant) async {

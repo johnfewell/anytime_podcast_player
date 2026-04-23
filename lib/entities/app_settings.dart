@@ -134,11 +134,6 @@ class AppSettings {
   /// view (spec REQ-012). Not surfaced in normal Settings UI.
   final bool showAnalysisHistory;
 
-  /// Optional HuggingFace access token used when downloading gated Gemma
-  /// model files (spec EXT-001). Empty string when the user has not supplied
-  /// one.
-  final String huggingFaceAccessToken;
-
   AppSettings({
     required this.theme,
     required this.markDeletedEpisodesAsPlayed,
@@ -172,7 +167,6 @@ class AppSettings {
     required this.backgroundAnalysisDiskCostAccepted,
     required this.onDemandAnalysisEnabled,
     required this.showAnalysisHistory,
-    required this.huggingFaceAccessToken,
   });
 
   AppSettings.sensibleDefaults()
@@ -207,8 +201,7 @@ class AppSettings {
         backgroundLocalModel = BackgroundAnalysisLocalModel.gemma4E2B,
         backgroundAnalysisDiskCostAccepted = false,
         onDemandAnalysisEnabled = true,
-        showAnalysisHistory = false,
-        huggingFaceAccessToken = '';
+        showAnalysisHistory = false;
 
   AppSettings copyWith({
     String? theme,
@@ -244,7 +237,6 @@ class AppSettings {
     bool? backgroundAnalysisDiskCostAccepted,
     bool? onDemandAnalysisEnabled,
     bool? showAnalysisHistory,
-    String? huggingFaceAccessToken,
   }) =>
       AppSettings(
         theme: theme ?? this.theme,
@@ -280,6 +272,5 @@ class AppSettings {
             backgroundAnalysisDiskCostAccepted ?? this.backgroundAnalysisDiskCostAccepted,
         onDemandAnalysisEnabled: onDemandAnalysisEnabled ?? this.onDemandAnalysisEnabled,
         showAnalysisHistory: showAnalysisHistory ?? this.showAnalysisHistory,
-        huggingFaceAccessToken: huggingFaceAccessToken ?? this.huggingFaceAccessToken,
       );
 }

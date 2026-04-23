@@ -5,6 +5,7 @@
 const openAiApiKeySecret = 'openai_api_key';
 const grokApiKeySecret = 'grok_api_key';
 const geminiApiKeySecret = 'gemini_api_key';
+const huggingFaceAccessTokenSecret = 'hugging_face_access_token';
 
 abstract class SecureSecretsService {
   Future<String?> read(String key);
