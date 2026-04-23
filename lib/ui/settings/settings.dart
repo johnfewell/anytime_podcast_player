@@ -29,6 +29,11 @@ import 'package:flutter_dialogs/flutter_dialogs.dart';
 import 'package:logging/logging.dart';
 import 'package:provider/provider.dart';
 
+/// Test seam: tests running on non-Android hosts set this to exercise the
+/// Android-gated background-analysis UI without faking `dart:io.Platform`.
+@visibleForTesting
+bool Function()? debugBackgroundAnalysisSupportedOverride;
+
 /// This is the settings page and allows the user to select various options for the app.
 class Settings extends StatefulWidget {
   const Settings({
@@ -40,6 +45,7 @@ class Settings extends StatefulWidget {
 }
 
 class _SettingsState extends State<Settings> {
+  final log = Logger('Settings');
   bool sdcard = false;
   int _versionTapCount = 0;
   bool? _gemmaInstalled;
@@ -48,6 +54,7 @@ class _SettingsState extends State<Settings> {
   String? _downloadError;
   StreamSubscription<GemmaDownloadProgress>? _downloadSub;
   bool _runningBackgroundAnalysis = false;
+  Future<String?>? _hfTokenFuture;
 
   @override
   void initState() {
@@ -79,9 +86,26 @@ class _SettingsState extends State<Settings> {
     });
   }
 
-  void _startGemmaDownload(BackgroundAnalysisLocalModel variant, String? hfToken) {
+  Future<void> _startGemmaDownload(BackgroundAnalysisLocalModel variant) async {
     final service = Provider.of<GemmaModelDownloadService>(context, listen: false);
-    _downloadSub?.cancel();
+    final secretsService = Provider.of<SecureSecretsService>(context, listen: false);
+    String? hfToken;
+    try {
+      hfToken = await secretsService.read(huggingFaceAccessTokenSecret);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _downloadError = error.toString();
+      });
+      return;
+    }
+    if (!mounted) return;
+    final previousDownloadSub = _downloadSub;
+    _downloadSub = null;
+    if (previousDownloadSub != null) {
+      await previousDownloadSub.cancel();
+    }
+    if (!mounted) return;
     setState(() {
       _downloadProgress = const GemmaDownloadProgress(percent: 0, filename: '');
       _downloadError = null;
@@ -260,44 +284,7 @@ class _SettingsState extends State<Settings> {
                 ),
                 const SizedBox(height: 28.0),
                 const _SectionLabel(label: 'Background ad analysis'),
-                _SettingsCard(
-                  children: [
-                    _ToggleSettingsTile(
-                      title: 'Auto-analyze downloaded episodes',
-                      subtitle: _backgroundAnalysisSubtitle(),
-                      value: settings.backgroundAnalysisEnabled && _backgroundAnalysisSupported(),
-                      onChanged: _backgroundAnalysisSupported()
-                          ? (enabled) => _handleBackgroundAnalysisToggle(settingsBloc, settings, enabled)
-                          : (_) {},
-                    ),
-                    if (settings.backgroundAnalysisEnabled && _backgroundAnalysisSupported()) ...[
-                      _ActionSettingsTile(
-                        icon: Icons.memory_outlined,
-                        title: 'On-device model',
-                        subtitle: _backgroundLocalModelLabel(settings.backgroundLocalModel),
-                        onTap: () => _showBackgroundLocalModelDialog(settings),
-                      ),
-                      _buildGemmaInstallTile(settings),
-                      _ActionSettingsTile(
-                        icon: Icons.vpn_key_outlined,
-                        title: 'HuggingFace token',
-                        subtitle: settings.huggingFaceAccessToken.isEmpty
-                            ? 'Optional — required only for gated model files'
-                            : '•••••••• (set)',
-                        onTap: () => _showHuggingFaceTokenDialog(settings, settingsBloc),
-                      ),
-                      if (settings.showAnalysisHistory)
-                        _ActionSettingsTile(
-                          icon: Icons.play_arrow_outlined,
-                          title: 'Run background analysis now (dev)',
-                          subtitle: _runningBackgroundAnalysis
-                              ? 'Running…'
-                              : 'Processes the next queued episode on the UI isolate',
-                          onTap: _runBackgroundAnalysisNow,
-                        ),
-                    ],
-                  ],
-                ),
+                _buildBackgroundAnalysisCard(settingsBloc, settings),
                 const SizedBox(height: 28.0),
                 const _SectionLabel(label: 'On-demand analysis'),
                 _SettingsCard(
@@ -777,7 +764,53 @@ class _SettingsState extends State<Settings> {
       });
       return;
     }
-    _startGemmaDownload(variant, settings.huggingFaceAccessToken);
+    await _startGemmaDownload(variant);
+  }
+
+  Widget _buildBackgroundAnalysisCard(SettingsBloc settingsBloc, AppSettings settings) {
+    final supported = _backgroundAnalysisSupported();
+    final sectionEnabled = settings.backgroundAnalysisEnabled && supported;
+    return _SettingsCard(
+      children: [
+        _ToggleSettingsTile(
+          title: 'Auto-analyze downloaded episodes',
+          subtitle: _backgroundAnalysisSubtitle(),
+          value: sectionEnabled,
+          onChanged: supported
+              ? (enabled) => _handleBackgroundAnalysisToggle(settingsBloc, settings, enabled)
+              : (_) {},
+        ),
+        if (sectionEnabled) ...[
+          _ActionSettingsTile(
+            icon: Icons.memory_outlined,
+            title: 'On-device model',
+            subtitle: _backgroundLocalModelLabel(settings.backgroundLocalModel),
+            onTap: () => _showBackgroundLocalModelDialog(settings),
+          ),
+          _buildGemmaInstallTile(settings),
+          FutureBuilder<String?>(
+            future: _hfTokenFuture ??= _readHuggingFaceToken(),
+            builder: (context, snapshot) {
+              return _ActionSettingsTile(
+                icon: Icons.vpn_key_outlined,
+                title: 'HuggingFace token',
+                subtitle: _huggingFaceTokenSubtitle(snapshot),
+                onTap: _showHuggingFaceTokenDialog,
+              );
+            },
+          ),
+          if (settings.showAnalysisHistory)
+            _ActionSettingsTile(
+              icon: Icons.play_arrow_outlined,
+              title: 'Run background analysis now (dev)',
+              subtitle: _runningBackgroundAnalysis
+                  ? 'Running…'
+                  : 'Processes the next queued episode on the UI isolate',
+              onTap: _runBackgroundAnalysisNow,
+            ),
+        ],
+      ],
+    );
   }
 
   Widget _buildGemmaInstallTile(AppSettings settings) {
@@ -803,7 +836,7 @@ class _SettingsState extends State<Settings> {
         icon: Icons.error_outline,
         title: 'Download failed',
         subtitle: 'Tap to retry — ${_downloadError!}',
-        onTap: () => _startGemmaDownload(variant, settings.huggingFaceAccessToken),
+        onTap: () => unawaited(_startGemmaDownload(variant)),
       );
     }
 
@@ -821,7 +854,7 @@ class _SettingsState extends State<Settings> {
       title: 'Download Gemma model',
       subtitle:
           '${AnalysisModelCatalog.formatBytes(AnalysisModelCatalog.approximateSizeBytesFor(variant))} — tap to download',
-      onTap: () => _startGemmaDownload(variant, settings.huggingFaceAccessToken),
+      onTap: () => unawaited(_startGemmaDownload(variant)),
     );
   }
 
@@ -841,12 +874,45 @@ class _SettingsState extends State<Settings> {
     if (confirmed != true) return;
     await _cancelGemmaDownload(variant);
     if (!mounted) return;
-    _startGemmaDownload(variant, settings.huggingFaceAccessToken);
+    await _startGemmaDownload(variant);
   }
 
-  Future<void> _showHuggingFaceTokenDialog(AppSettings settings, SettingsBloc settingsBloc) async {
-    final controller = TextEditingController(text: settings.huggingFaceAccessToken);
-    final result = await showPlatformDialog<String>(
+  Future<String?> _readHuggingFaceToken() {
+    return Provider.of<SecureSecretsService>(context, listen: false).read(huggingFaceAccessTokenSecret);
+  }
+
+  String _huggingFaceTokenSubtitle(AsyncSnapshot<String?> snapshot) {
+    if (snapshot.connectionState != ConnectionState.done) return 'Loading…';
+    if (snapshot.hasError) return 'Unable to read stored token — tap to retry';
+    final hasToken = snapshot.data?.trim().isNotEmpty ?? false;
+    if (hasToken) return '•••••••• (set)';
+    return 'Optional — required only for gated model files';
+  }
+
+  Future<void> _showHuggingFaceTokenDialog() async {
+    final secretsService = Provider.of<SecureSecretsService>(context, listen: false);
+    String? existing;
+    try {
+      existing = await secretsService.read(huggingFaceAccessTokenSecret);
+    } catch (error, stack) {
+      log.warning('Failed to read HuggingFace token from secure storage.', error, stack);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not access secure storage to load the HuggingFace token.'),
+        ),
+      );
+      return;
+    }
+    final controller = TextEditingController();
+    if (!mounted) return;
+
+    final hasExisting = existing?.trim().isNotEmpty ?? false;
+    final blurb = hasExisting
+        ? 'A token is already stored securely. Save a new one to replace it, or clear it below.'
+        : 'Required only for gated model files. Paste a token from huggingface.co/settings/tokens.';
+
+    await showPlatformDialog<void>(
       context: context,
       useRootNavigator: false,
       builder: (dialogContext) => AlertDialog(
@@ -855,13 +921,12 @@ class _SettingsState extends State<Settings> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Required only for gated model files. Paste a token from huggingface.co/settings/tokens.',
-            ),
+            Text(blurb),
             const SizedBox(height: 12),
             TextField(
               controller: controller,
               autofocus: true,
+              obscureText: true,
               decoration: const InputDecoration(
                 hintText: 'hf_...',
                 border: OutlineInputBorder(),
@@ -870,17 +935,77 @@ class _SettingsState extends State<Settings> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(dialogContext).pop(null), child: const Text('Cancel')),
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(controller.text.trim()),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => _handleClearHuggingFaceToken(dialogContext, secretsService),
+            child: const Text('Clear'),
+          ),
+          TextButton(
+            onPressed: () => _handleSaveHuggingFaceToken(
+              dialogContext,
+              secretsService,
+              controller.text,
+            ),
             child: const Text('Save'),
           ),
         ],
       ),
     );
-    if (result != null) {
-      settingsBloc.setHuggingFaceAccessToken(result);
+  }
+
+  Future<void> _handleClearHuggingFaceToken(
+    BuildContext dialogContext,
+    SecureSecretsService secretsService,
+  ) async {
+    try {
+      await secretsService.delete(huggingFaceAccessTokenSecret);
+    } catch (error, stack) {
+      log.warning('Failed to clear HuggingFace token from secure storage.', error, stack);
+      _showTokenStorageErrorSnackBar('Could not clear the HuggingFace token. Please try again.');
+      return;
     }
+    if (dialogContext.mounted) Navigator.pop(dialogContext);
+    _refreshHuggingFaceTokenFuture();
+  }
+
+  Future<void> _handleSaveHuggingFaceToken(
+    BuildContext dialogContext,
+    SecureSecretsService secretsService,
+    String rawValue,
+  ) async {
+    final value = rawValue.trim();
+    try {
+      if (value.isEmpty) {
+        await secretsService.delete(huggingFaceAccessTokenSecret);
+      } else {
+        await secretsService.write(
+          key: huggingFaceAccessTokenSecret,
+          value: value,
+        );
+      }
+    } catch (error, stack) {
+      log.warning('Failed to save HuggingFace token to secure storage.', error, stack);
+      _showTokenStorageErrorSnackBar('Could not save the HuggingFace token. Please try again.');
+      return;
+    }
+    if (dialogContext.mounted) Navigator.pop(dialogContext);
+    _refreshHuggingFaceTokenFuture();
+  }
+
+  void _showTokenStorageErrorSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _refreshHuggingFaceTokenFuture() {
+    if (!mounted) return;
+    final refreshed = _readHuggingFaceToken();
+    setState(() {
+      _hfTokenFuture = refreshed;
+    });
   }
 
   Future<bool> _showBackgroundAnalysisDiskCostDialog(BackgroundAnalysisLocalModel variant) async {
@@ -941,6 +1066,8 @@ class _SettingsState extends State<Settings> {
   }
 
   bool _backgroundAnalysisSupported() {
+    final override = debugBackgroundAnalysisSupportedOverride;
+    if (override != null) return override();
     // Background Gemma 4 requires Android 8+ (SDK 26) for WorkManager + model
     // runtime. Other platforms have no background pipeline at all.
     return Platform.isAndroid;

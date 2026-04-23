@@ -133,10 +133,6 @@ abstract class SettingsService {
 
   bool get showAnalysisHistory;
 
-  set huggingFaceAccessToken(String token);
-
-  String get huggingFaceAccessToken;
-
   Stream<String> get settingsListener;
 
   set lastFeedRefresh(DateTime lastFeedRefresh);

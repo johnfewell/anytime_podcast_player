@@ -7,6 +7,7 @@ import 'dart:math';
 import 'package:anytime/core/environment.dart';
 import 'package:anytime/entities/app_settings.dart';
 import 'package:anytime/services/settings/settings_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -25,9 +26,17 @@ class MobileSettingsService extends SettingsService {
       _instance = MobileSettingsService._create();
 
       _sharedPreferences = await SharedPreferences.getInstance();
+      // The HuggingFace token briefly lived in SharedPreferences before moving
+      // to secure storage — remove any stale plaintext copy.
+      await _sharedPreferences.remove('huggingFaceAccessToken');
     }
 
     return _instance;
+  }
+
+  @visibleForTesting
+  static void resetInstanceForTesting() {
+    _instance = null;
   }
 
   @override
@@ -414,17 +423,6 @@ class MobileSettingsService extends SettingsService {
   @override
   bool get showAnalysisHistory {
     return _sharedPreferences.getBool('showAnalysisHistory') ?? false;
-  }
-
-  @override
-  set huggingFaceAccessToken(String token) {
-    _sharedPreferences.setString('huggingFaceAccessToken', token);
-    settingsNotifier.sink.add('huggingFaceAccessToken');
-  }
-
-  @override
-  String get huggingFaceAccessToken {
-    return _sharedPreferences.getString('huggingFaceAccessToken') ?? '';
   }
 
   @override

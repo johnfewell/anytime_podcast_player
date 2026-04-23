@@ -67,44 +67,53 @@ Future<void> runBackgroundAnalysisOnce() async {
   }
 
   final repository = SembastRepository(cleanup: false);
-  final transcriptionService = WhisperEpisodeTranscriptionService();
   final analysisService = DefaultBackgroundAnalysisService(repository);
 
-  final variant = settingsService.backgroundLocalModel;
-  var modelId = AnalysisModelCatalog.modelIdFor(variant);
-
-  // Smoke-test override (dev-only). If `<app-support>/smoke_test_model.task`
-  // exists, use it directly and bypass the catalog/download flow. Lets us
-  // bisect MediaPipe vs Gemma3n-specific crashes without rewiring downloads.
-  final supportDir = await getApplicationSupportDirectory();
-  final smokePath = p.join(supportDir.path, 'smoke_test_model.task');
-  String? overridePath;
-  if (File(smokePath).existsSync()) {
-    overridePath = smokePath;
-    modelId = 'smoke-test:${p.basename(smokePath)}';
-    _log.info('Using smoke-test model at $smokePath');
-  }
-
-  final downloadService = FlutterGemmaModelDownloadService();
-  final modelPath = overridePath ?? await downloadService.resolveLocalPath(variant);
-  if (modelPath == null) {
-    _log.warning('Gemma model not installed yet for $variant; skipping run');
-    return;
-  }
-
-  final analyzer = FlutterGemmaAdAnalyzer(modelFilePath: modelPath);
-
-  final worker = BackgroundAnalysisWorker(
-    repository: repository,
-    transcriptionService: transcriptionService,
-    gemmaAnalyzer: analyzer,
-    service: analysisService,
-    modelId: modelId,
-  );
-
   try {
-    await worker.runNext();
+    final transcriptionService = WhisperEpisodeTranscriptionService();
+
+    final variant = settingsService.backgroundLocalModel;
+    var modelId = AnalysisModelCatalog.modelIdFor(variant);
+
+    // Smoke-test override (dev-only). If `<app-support>/smoke_test_model.task`
+    // exists, use it directly and bypass the catalog/download flow. Lets us
+    // bisect MediaPipe vs Gemma3n-specific crashes without rewiring downloads.
+    final supportDir = await getApplicationSupportDirectory();
+    final smokePath = p.join(supportDir.path, 'smoke_test_model.task');
+    String? overridePath;
+    if (File(smokePath).existsSync()) {
+      overridePath = smokePath;
+      modelId = 'smoke-test:${p.basename(smokePath)}';
+      _log.info('Using smoke-test model at $smokePath');
+    }
+
+    final downloadService = FlutterGemmaModelDownloadService();
+    final modelPath = overridePath ?? await downloadService.resolveLocalPath(variant);
+    if (modelPath == null) {
+      _log.warning('Gemma model not installed yet for $variant; skipping run');
+      return;
+    }
+
+    final analyzer = FlutterGemmaAdAnalyzer(modelFilePath: modelPath);
+
+    final worker = BackgroundAnalysisWorker(
+      repository: repository,
+      transcriptionService: transcriptionService,
+      gemmaAnalyzer: analyzer,
+      service: analysisService,
+      modelId: modelId,
+    );
+
+    try {
+      await worker.runNext();
+    } finally {
+      await analyzer.close();
+    }
   } finally {
-    await analyzer.close();
+    try {
+      await analysisService.dispose();
+    } finally {
+      await repository.close();
+    }
   }
 }

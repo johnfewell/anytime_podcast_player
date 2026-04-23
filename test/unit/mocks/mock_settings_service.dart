@@ -107,8 +107,5 @@ class MockSettingsService extends SettingsService {
   bool showAnalysisHistory = false;
 
   @override
-  String huggingFaceAccessToken = '';
-
-  @override
   Stream<String> get settingsListener => PublishSubject<String>().stream;
 }
