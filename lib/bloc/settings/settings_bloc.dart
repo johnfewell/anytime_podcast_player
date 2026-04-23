@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'dart:async';
+
 import 'package:anytime/bloc/bloc.dart';
 import 'package:anytime/core/environment.dart';
 import 'package:anytime/entities/app_settings.dart';
@@ -318,7 +320,7 @@ class SettingsBloc extends Bloc {
 
     // Reconcile the WorkManager schedule with the persisted setting on
     // startup; the _backgroundAnalysisEnabled listener only fires on toggle.
-    _reconcileBackgroundAnalysisSchedule(settingsService.backgroundAnalysisEnabled);
+    unawaited(_reconcileBackgroundAnalysisSchedule(settingsService.backgroundAnalysisEnabled));
   }
 
   Future<void> _reconcileBackgroundAnalysisSchedule(bool enabled) async {
