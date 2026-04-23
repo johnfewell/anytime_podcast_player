@@ -306,12 +306,24 @@ class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionServic
       final total = response.contentLength;
       final sink = destination.openWrite();
       var downloaded = 0;
-      await for (final chunk in response) {
-        sink.add(chunk);
-        downloaded += chunk.length;
-        onProgress(downloaded, total);
+      var success = false;
+      try {
+        await for (final chunk in response) {
+          sink.add(chunk);
+          downloaded += chunk.length;
+          onProgress(downloaded, total);
+        }
+        success = true;
+      } finally {
+        await sink.close();
+        if (!success && destination.existsSync()) {
+          try {
+            await destination.delete();
+          } catch (_) {
+            // Best-effort cleanup; ignore.
+          }
+        }
       }
-      await sink.close();
     } finally {
       client.close(force: true);
     }
