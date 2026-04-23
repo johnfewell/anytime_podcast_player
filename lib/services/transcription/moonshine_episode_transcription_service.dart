@@ -271,20 +271,30 @@ class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionServic
         message: 'Extracting Moonshine model...',
       ));
 
-      await _extractTarBz2(tarballPath, modelRoot.path);
-      await File(tarballPath).delete();
+      try {
+        await _extractTarBz2(tarballPath, modelRoot.path);
 
-      if (!(encoder.existsSync() && decoder.existsSync() && tokens.existsSync())) {
-        throw const EpisodeTranscriptionException(
-          'Moonshine model archive is missing expected files after extraction.',
+        if (!(encoder.existsSync() && decoder.existsSync() && tokens.existsSync())) {
+          throw const EpisodeTranscriptionException(
+            'Moonshine model archive is missing expected files after extraction.',
+          );
+        }
+
+        return _MoonshineModelPaths(
+          encoder: encoder.path,
+          decoder: decoder.path,
+          tokens: tokens.path,
         );
+      } finally {
+        final tarball = File(tarballPath);
+        if (tarball.existsSync()) {
+          try {
+            await tarball.delete();
+          } on FileSystemException {
+            // Best-effort cleanup; preserve the original error if any.
+          }
+        }
       }
-
-      return _MoonshineModelPaths(
-        encoder: encoder.path,
-        decoder: decoder.path,
-        tokens: tokens.path,
-      );
     });
   }
 
