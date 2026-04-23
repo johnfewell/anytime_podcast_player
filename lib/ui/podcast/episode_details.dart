@@ -373,7 +373,9 @@ class EpisodeAnalysisPanel extends StatelessWidget {
                         )
                       : const Icon(Icons.auto_awesome_outlined),
                   label: Text(_analysisActionLabel(currentEpisode, isGemini: isGemini)),
-                  onPressed: isAnalyzing || !_canTranscribeOrAnalyze(currentEpisode, isGemini: isGemini)
+                  onPressed: isAnalyzing ||
+                          analysisProvider == TranscriptUploadProvider.disabled ||
+                          !_canTranscribeOrAnalyze(currentEpisode, isGemini: isGemini)
                       ? null
                       : () async {
                           final hasTranscript = _canAnalyze(currentEpisode);
