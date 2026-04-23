@@ -333,14 +333,21 @@ class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionServic
     final bytes = await File(tarballPath).readAsBytes();
     final tarBytes = BZip2Decoder().decodeBytes(bytes);
     final archive = TarDecoder().decodeBytes(tarBytes);
+    final destAbsolute = path.normalize(path.absolute(destDir));
     for (final entry in archive) {
-      final outPath = path.join(destDir, entry.name);
+      final outAbsolute = path.normalize(path.absolute(path.join(destDir, entry.name)));
+      // Reject any entry whose normalized path escapes destDir (zip-slip).
+      if (outAbsolute != destAbsolute && !path.isWithin(destAbsolute, outAbsolute)) {
+        throw EpisodeTranscriptionException(
+          'Refusing to extract tar entry outside model dir: ${entry.name}',
+        );
+      }
       if (entry.isFile) {
-        final out = File(outPath);
+        final out = File(outAbsolute);
         await out.parent.create(recursive: true);
         await out.writeAsBytes(entry.content as List<int>);
       } else {
-        await Directory(outPath).create(recursive: true);
+        await Directory(outAbsolute).create(recursive: true);
       }
     }
   }
