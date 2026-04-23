@@ -299,13 +299,16 @@ class _SettingsState extends State<Settings> {
                         future: Provider.of<SecureSecretsService>(context, listen: false)
                             .read(huggingFaceAccessTokenSecret),
                         builder: (context, snapshot) {
-                          final hasToken = (snapshot.data?.trim().isNotEmpty ?? false);
+                          final isLoading = snapshot.connectionState != ConnectionState.done;
+                          final hasToken = !isLoading && (snapshot.data?.trim().isNotEmpty ?? false);
                           return _ActionSettingsTile(
                             icon: Icons.vpn_key_outlined,
                             title: 'HuggingFace token',
-                            subtitle: hasToken
-                                ? '•••••••• (set)'
-                                : 'Optional — required only for gated model files',
+                            subtitle: isLoading
+                                ? 'Loading…'
+                                : hasToken
+                                    ? '•••••••• (set)'
+                                    : 'Optional — required only for gated model files',
                             onTap: _showHuggingFaceTokenDialog,
                           );
                         },
