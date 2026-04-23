@@ -33,6 +33,10 @@ class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionServic
   static const _decoderFile = 'decoder_model_merged.ort';
   static const _tokensFile = 'tokens.txt';
   static const _chunkSeconds = 5;
+  // Hard cap on the model archive download. The published asset is ~30 MB;
+  // anything significantly larger is treated as an unexpected/replaced asset
+  // and rejected to avoid filling storage or feeding a decompression bomb.
+  static const _maxModelBytes = 100 * 1024 * 1024;
 
   static final _log = Logger('MoonshineEpisodeTranscriptionService');
   static bool _bindingsInitialized = false;
@@ -261,6 +265,7 @@ class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionServic
       await _downloadWithProgress(
         url: _modelArchiveUrl,
         destination: File(tarballPath),
+        maxBytes: _maxModelBytes,
         onProgress: (downloaded, total) {
           onProgress?.call(EpisodeTranscriptionProgress(
             stage: EpisodeTranscriptionStage.downloadingModel,
@@ -305,6 +310,7 @@ class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionServic
   Future<void> _downloadWithProgress({
     required String url,
     required File destination,
+    required int maxBytes,
     required void Function(int downloaded, int total) onProgress,
   }) async {
     final client = HttpClient()..userAgent = 'Anytime Podcast Player';
@@ -318,13 +324,23 @@ class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionServic
         );
       }
       final total = response.contentLength;
+      if (total > maxBytes) {
+        throw EpisodeTranscriptionException(
+          'Moonshine model download is $total bytes, exceeds cap of $maxBytes.',
+        );
+      }
       final sink = destination.openWrite();
       var downloaded = 0;
       var success = false;
       try {
         await for (final chunk in response) {
-          sink.add(chunk);
           downloaded += chunk.length;
+          if (downloaded > maxBytes) {
+            throw EpisodeTranscriptionException(
+              'Moonshine model download exceeded cap of $maxBytes bytes.',
+            );
+          }
+          sink.add(chunk);
           onProgress(downloaded, total);
         }
         success = true;
