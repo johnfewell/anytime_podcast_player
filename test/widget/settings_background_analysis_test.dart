@@ -154,6 +154,20 @@ void main() {
       expect(find.text('Unable to read stored token — tap to retry'), findsOneWidget);
     });
 
+    testWidgets('tapping the tile when storage is locked shows a snackbar, not the dialog', (tester) async {
+      secrets.readError = StateError('secure storage locked');
+      await pumpSettings(tester);
+
+      await tester.tap(find.text(_hfTokenTitle));
+      await tester.pump();
+
+      expect(find.text('HuggingFace access token'), findsNothing);
+      expect(
+        find.text('Could not access secure storage to load the HuggingFace token.'),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('Save writes the token and refreshes the subtitle', (tester) async {
       await pumpSettings(tester);
 

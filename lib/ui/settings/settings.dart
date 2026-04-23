@@ -45,6 +45,7 @@ class Settings extends StatefulWidget {
 }
 
 class _SettingsState extends State<Settings> {
+  final log = Logger('Settings');
   bool sdcard = false;
   int _versionTapCount = 0;
   bool? _gemmaInstalled;
@@ -890,7 +891,19 @@ class _SettingsState extends State<Settings> {
 
   Future<void> _showHuggingFaceTokenDialog() async {
     final secretsService = Provider.of<SecureSecretsService>(context, listen: false);
-    final existing = await secretsService.read(huggingFaceAccessTokenSecret);
+    String? existing;
+    try {
+      existing = await secretsService.read(huggingFaceAccessTokenSecret);
+    } catch (error, stack) {
+      log.warning('Failed to read HuggingFace token from secure storage.', error, stack);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not access secure storage to load the HuggingFace token.'),
+        ),
+      );
+      return;
+    }
     final controller = TextEditingController();
     if (!mounted) return;
 
