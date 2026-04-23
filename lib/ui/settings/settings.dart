@@ -1349,6 +1349,9 @@ class _SettingsState extends State<Settings> {
       const _ValueLabel(TranscriptUploadProvider.gemini, 'Gemini (audio-direct)'),
       const _ValueLabel(TranscriptUploadProvider.openAi, 'OpenAI (transcript upload)'),
       const _ValueLabel(TranscriptUploadProvider.grok, 'Grok (transcript upload)'),
+      if (Environment.hasAnalysisBackend ||
+          settings.transcriptUploadProvider == TranscriptUploadProvider.analysisBackend)
+        const _ValueLabel(TranscriptUploadProvider.analysisBackend, 'Private backend'),
     ];
 
     await showPlatformDialog<void>(

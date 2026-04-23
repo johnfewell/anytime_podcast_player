@@ -305,6 +305,47 @@ void main() {
     expect(find.text('Analysis complete - no ad segments detected'), findsOneWidget);
   });
 
+  testWidgets('EpisodeAnalysisPanel disables the analysis button when the provider is disabled', (tester) async {
+    final repository = _FakeRepository();
+    final episode = Episode(
+      id: 42,
+      guid: 'ep-disabled',
+      pguid: 'pod-1',
+      podcast: 'Podcast',
+      title: 'Disabled Provider Episode',
+      contentUrl: 'https://cdn.example.com/disabled.mp3',
+      downloadPercentage: 100,
+    );
+    repository.episodesByGuid[episode.guid] = episode;
+
+    final podcastService = _FakePodcastService(repository: repository);
+    final bloc = EpisodeBloc(
+      podcastService: podcastService,
+      audioPlayerService: _FakeAudioPlayerService(),
+      analysisService: _FakeEpisodeAnalysisService(),
+      settingsService: _FakeSettingsService(
+        transcriptUploadProvider: TranscriptUploadProvider.disabled,
+      ),
+      transcriptionService: _FakeEpisodeTranscriptionService(),
+      analysisPollInterval: Duration.zero,
+    );
+    addTearDown(() async {
+      bloc.dispose();
+      await podcastService.dispose();
+    });
+
+    await tester.pumpWidget(_wrapWithEpisodeBloc(bloc, episode));
+    await tester.pumpAndSettle();
+
+    final analyzeButton = tester.widget<OutlinedButton>(
+      find.ancestor(
+        of: find.text('Transcribe & Analyze'),
+        matching: find.byType(OutlinedButton),
+      ),
+    );
+    expect(analyzeButton.onPressed, isNull);
+  });
+
   testWidgets('AdSkipListener shows the prompt and wires the skip action', (tester) async {
     final audioService = _FakeAudioPlayerService();
     final audioBloc = AudioBloc(audioPlayerService: audioService);
@@ -743,8 +784,12 @@ class _FakeEpisodeTranscriptionService implements EpisodeTranscriptionService {
 }
 
 class _FakeSettingsService implements SettingsService {
+  _FakeSettingsService({
+    this.transcriptUploadProvider = TranscriptUploadProvider.analysisBackend,
+  });
+
   @override
-  TranscriptUploadProvider get transcriptUploadProvider => TranscriptUploadProvider.analysisBackend;
+  final TranscriptUploadProvider transcriptUploadProvider;
 
   @override
   TranscriptionProvider get transcriptionProvider => TranscriptionProvider.localAi;
