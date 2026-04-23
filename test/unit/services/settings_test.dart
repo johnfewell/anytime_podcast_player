@@ -26,6 +26,38 @@ void main() {
     assert(settingsListener != null);
   });
 
+  group('HuggingFace token SharedPreferences migration', () {
+    setUp(() {
+      MobileSettingsService.resetInstanceForTesting();
+    });
+
+    tearDown(() {
+      MobileSettingsService.resetInstanceForTesting();
+    });
+
+    test('removes stale huggingFaceAccessToken from SharedPreferences on init', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'huggingFaceAccessToken': 'hf_stale_value',
+        'dummy': 1,
+      });
+
+      await MobileSettingsService.instance();
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.containsKey('huggingFaceAccessToken'), isFalse);
+      expect(prefs.getString('huggingFaceAccessToken'), isNull);
+    });
+
+    test('init is a no-op when huggingFaceAccessToken was never stored', () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{'dummy': 1});
+
+      await MobileSettingsService.instance();
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.containsKey('huggingFaceAccessToken'), isFalse);
+    });
+  });
+
   test('Test mark deleted episodes as played', () async {
     expect(mobileSettingsService?.markDeletedEpisodesAsPlayed, false);
     expectLater(settingsListener, emits('markplayedasdeleted'));

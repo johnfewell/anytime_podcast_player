@@ -7,6 +7,7 @@ import 'dart:math';
 import 'package:anytime/core/environment.dart';
 import 'package:anytime/entities/app_settings.dart';
 import 'package:anytime/services/settings/settings_service.dart';
+import 'package:flutter/foundation.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -31,6 +32,11 @@ class MobileSettingsService extends SettingsService {
     }
 
     return _instance;
+  }
+
+  @visibleForTesting
+  static void resetInstanceForTesting() {
+    _instance = null;
   }
 
   @override
