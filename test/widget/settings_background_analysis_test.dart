@@ -210,6 +210,44 @@ void main() {
       expect(secrets.values.containsKey(huggingFaceAccessTokenSecret), isFalse);
       expect(find.text(_hfTokenSet), findsNothing);
     });
+
+    testWidgets('Save failure keeps the dialog open and shows an error snackbar', (tester) async {
+      secrets.writeError = StateError('secure storage locked');
+      await pumpSettings(tester);
+
+      await tester.tap(find.text(_hfTokenTitle));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'hf_new_token');
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+
+      expect(find.text('HuggingFace access token'), findsOneWidget);
+      expect(
+        find.text('Could not save the HuggingFace token. Please try again.'),
+        findsOneWidget,
+      );
+      expect(secrets.values.containsKey(huggingFaceAccessTokenSecret), isFalse);
+    });
+
+    testWidgets('Clear failure keeps the dialog open and shows an error snackbar', (tester) async {
+      secrets.values[huggingFaceAccessTokenSecret] = 'hf_existing';
+      secrets.deleteError = StateError('secure storage locked');
+      await pumpSettings(tester);
+
+      await tester.tap(find.text(_hfTokenTitle));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Clear'));
+      await tester.pump();
+
+      expect(find.text('HuggingFace access token'), findsOneWidget);
+      expect(
+        find.text('Could not clear the HuggingFace token. Please try again.'),
+        findsOneWidget,
+      );
+      expect(secrets.values[huggingFaceAccessTokenSecret], 'hf_existing');
+    });
   });
 
   group('Gemma install tile', () {
@@ -354,6 +392,8 @@ class _FakeSecretsService implements SecureSecretsService {
   final Map<String, String> values = <String, String>{};
   Future<String?>? readFuture;
   Object? readError;
+  Object? writeError;
+  Object? deleteError;
 
   @override
   Future<String?> read(String key) {
@@ -366,11 +406,13 @@ class _FakeSecretsService implements SecureSecretsService {
 
   @override
   Future<void> write({required String key, required String value}) async {
+    if (writeError != null) throw writeError!;
     values[key] = value;
   }
 
   @override
   Future<void> delete(String key) async {
+    if (deleteError != null) throw deleteError!;
     values.remove(key);
   }
 }

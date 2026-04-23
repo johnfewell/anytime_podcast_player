@@ -960,7 +960,13 @@ class _SettingsState extends State<Settings> {
     BuildContext dialogContext,
     SecureSecretsService secretsService,
   ) async {
-    await secretsService.delete(huggingFaceAccessTokenSecret);
+    try {
+      await secretsService.delete(huggingFaceAccessTokenSecret);
+    } catch (error, stack) {
+      log.warning('Failed to clear HuggingFace token from secure storage.', error, stack);
+      _showTokenStorageErrorSnackBar('Could not clear the HuggingFace token. Please try again.');
+      return;
+    }
     if (dialogContext.mounted) Navigator.pop(dialogContext);
     _refreshHuggingFaceTokenFuture();
   }
@@ -971,16 +977,27 @@ class _SettingsState extends State<Settings> {
     String rawValue,
   ) async {
     final value = rawValue.trim();
-    if (value.isEmpty) {
-      await secretsService.delete(huggingFaceAccessTokenSecret);
-    } else {
-      await secretsService.write(
-        key: huggingFaceAccessTokenSecret,
-        value: value,
-      );
+    try {
+      if (value.isEmpty) {
+        await secretsService.delete(huggingFaceAccessTokenSecret);
+      } else {
+        await secretsService.write(
+          key: huggingFaceAccessTokenSecret,
+          value: value,
+        );
+      }
+    } catch (error, stack) {
+      log.warning('Failed to save HuggingFace token to secure storage.', error, stack);
+      _showTokenStorageErrorSnackBar('Could not save the HuggingFace token. Please try again.');
+      return;
     }
     if (dialogContext.mounted) Navigator.pop(dialogContext);
     _refreshHuggingFaceTokenFuture();
+  }
+
+  void _showTokenStorageErrorSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _refreshHuggingFaceTokenFuture() {
