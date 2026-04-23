@@ -10,6 +10,7 @@ import 'package:anytime/services/transcription/local_transcription_engine.dart';
 import 'package:anytime/ui/anytime_podcast_app.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
@@ -26,11 +27,13 @@ void main() async {
 
   Logger.root.onRecord.listen((record) {
     print('${record.level.name}: - ${record.time}: ${record.loggerName}: ${record.message}');
-    if (record.error != null) {
-      print('  error: ${record.error}');
-    }
-    if (record.stackTrace != null) {
-      print('  stack: ${record.stackTrace}');
+    if (kDebugMode || kProfileMode) {
+      if (record.error != null) {
+        print('  error: ${record.error}');
+      }
+      if (record.stackTrace != null) {
+        print('  stack: ${record.stackTrace}');
+      }
     }
   });
 
