@@ -18,7 +18,7 @@ jobs:
           channel: stable
           flutter-version-file: pubspec.yaml
       - run: flutter pub get
-      - run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+      - run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
       - run: flutter test test/unit test/widget
       - run: flutter build apk --debug
       - run: flutter build appbundle --debug
