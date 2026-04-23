@@ -48,6 +48,7 @@ class _SettingsState extends State<Settings> {
   String? _downloadError;
   StreamSubscription<GemmaDownloadProgress>? _downloadSub;
   bool _runningBackgroundAnalysis = false;
+  Future<String?>? _hfTokenFuture;
 
   @override
   void initState() {
@@ -296,8 +297,7 @@ class _SettingsState extends State<Settings> {
                       ),
                       _buildGemmaInstallTile(settings),
                       FutureBuilder<String?>(
-                        future: Provider.of<SecureSecretsService>(context, listen: false)
-                            .read(huggingFaceAccessTokenSecret),
+                        future: _hfTokenFuture ??= _readHuggingFaceToken(),
                         builder: (context, snapshot) {
                           final isLoading = snapshot.connectionState != ConnectionState.done;
                           final hasToken = !isLoading && (snapshot.data?.trim().isNotEmpty ?? false);
@@ -871,6 +871,10 @@ class _SettingsState extends State<Settings> {
     await _startGemmaDownload(variant);
   }
 
+  Future<String?> _readHuggingFaceToken() {
+    return Provider.of<SecureSecretsService>(context, listen: false).read(huggingFaceAccessTokenSecret);
+  }
+
   Future<void> _showHuggingFaceTokenDialog() async {
     final secretsService = Provider.of<SecureSecretsService>(context, listen: false);
     final existing = await secretsService.read(huggingFaceAccessTokenSecret);
@@ -912,7 +916,7 @@ class _SettingsState extends State<Settings> {
             onPressed: () async {
               await secretsService.delete(huggingFaceAccessTokenSecret);
               if (dialogContext.mounted) Navigator.pop(dialogContext);
-              if (mounted) setState(() {});
+              if (mounted) setState(() => _hfTokenFuture = _readHuggingFaceToken());
             },
             child: const Text('Clear'),
           ),
@@ -928,7 +932,7 @@ class _SettingsState extends State<Settings> {
                 );
               }
               if (dialogContext.mounted) Navigator.pop(dialogContext);
-              if (mounted) setState(() {});
+              if (mounted) setState(() => _hfTokenFuture = _readHuggingFaceToken());
             },
             child: const Text('Save'),
           ),
