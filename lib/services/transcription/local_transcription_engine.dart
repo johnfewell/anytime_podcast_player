@@ -31,8 +31,12 @@ Future<EpisodeTranscriptionService> buildLocalTranscriptionService() async {
       log.info('use_moonshine flag found; selecting Moonshine');
       return MoonshineEpisodeTranscriptionService();
     }
-  } catch (e) {
-    log.warning('Failed to check Moonshine flag, defaulting to Whisper: $e');
+  } catch (e, stackTrace) {
+    log.warning(
+      'Failed to check Moonshine flag, defaulting to Whisper',
+      e,
+      stackTrace,
+    );
   }
 
   return WhisperEpisodeTranscriptionService();
