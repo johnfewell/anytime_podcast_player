@@ -82,7 +82,16 @@ class _SettingsState extends State<Settings> {
   Future<void> _startGemmaDownload(BackgroundAnalysisLocalModel variant) async {
     final service = Provider.of<GemmaModelDownloadService>(context, listen: false);
     final secretsService = Provider.of<SecureSecretsService>(context, listen: false);
-    final hfToken = await secretsService.read(huggingFaceAccessTokenSecret);
+    String? hfToken;
+    try {
+      hfToken = await secretsService.read(huggingFaceAccessTokenSecret);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _downloadError = error.toString();
+      });
+      return;
+    }
     if (!mounted) return;
     final previousDownloadSub = _downloadSub;
     _downloadSub = null;
@@ -792,7 +801,7 @@ class _SettingsState extends State<Settings> {
       });
       return;
     }
-    _startGemmaDownload(variant);
+    await _startGemmaDownload(variant);
   }
 
   Widget _buildGemmaInstallTile(AppSettings settings) {
@@ -818,7 +827,7 @@ class _SettingsState extends State<Settings> {
         icon: Icons.error_outline,
         title: 'Download failed',
         subtitle: 'Tap to retry — ${_downloadError!}',
-        onTap: () => _startGemmaDownload(variant),
+        onTap: () => unawaited(_startGemmaDownload(variant)),
       );
     }
 
@@ -836,7 +845,7 @@ class _SettingsState extends State<Settings> {
       title: 'Download Gemma model',
       subtitle:
           '${AnalysisModelCatalog.formatBytes(AnalysisModelCatalog.approximateSizeBytesFor(variant))} — tap to download',
-      onTap: () => _startGemmaDownload(variant),
+      onTap: () => unawaited(_startGemmaDownload(variant)),
     );
   }
 
@@ -856,7 +865,7 @@ class _SettingsState extends State<Settings> {
     if (confirmed != true) return;
     await _cancelGemmaDownload(variant);
     if (!mounted) return;
-    _startGemmaDownload(variant);
+    await _startGemmaDownload(variant);
   }
 
   Future<void> _showHuggingFaceTokenDialog() async {
