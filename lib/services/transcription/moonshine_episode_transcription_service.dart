@@ -97,12 +97,6 @@ class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionServic
       try {
         for (var i = 0; i < chunkPaths.length; i++) {
           final chunkStart = Duration(seconds: i * _chunkSeconds);
-          onProgress?.call(EpisodeTranscriptionProgress(
-            stage: EpisodeTranscriptionStage.transcribing,
-            message: 'Transcribing chunk ${i + 1}/${chunkPaths.length} '
-                '(${_format(stopwatch.elapsed)} elapsed)',
-            progress: chunkPaths.isEmpty ? null : i / chunkPaths.length,
-          ));
           // Yield to the event loop so the progress dialog can repaint
           // between sync FFI calls.
           await Future<void>.delayed(Duration.zero);
@@ -121,6 +115,14 @@ class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionServic
               'Moonshine chunk ${i + 1}/${chunkPaths.length} failed: $err',
             );
           }
+
+          onProgress?.call(EpisodeTranscriptionProgress(
+            stage: EpisodeTranscriptionStage.transcribing,
+            message: 'Transcribed chunk ${i + 1}/${chunkPaths.length} '
+                '(${_format(stopwatch.elapsed)} elapsed)',
+            progress: (i + 1) / chunkPaths.length,
+          ));
+
           if (result.text.isEmpty) continue;
 
           subtitles.add(Subtitle(
