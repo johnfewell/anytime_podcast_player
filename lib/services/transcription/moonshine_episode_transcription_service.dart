@@ -103,9 +103,9 @@ class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionServic
           // between sync FFI calls.
           await Future<void>.delayed(Duration.zero);
 
-          final String text;
+          final _ChunkResult result;
           try {
-            text = _transcribeChunk(recognizer, chunkPaths[i]);
+            result = _transcribeChunk(recognizer, chunkPaths[i]);
           } catch (err, stack) {
             _log.severe(
               'Moonshine failed on chunk ${i + 1}/${chunkPaths.length} '
@@ -117,13 +117,13 @@ class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionServic
               'Moonshine chunk ${i + 1}/${chunkPaths.length} failed: $err',
             );
           }
-          if (text.isEmpty) continue;
+          if (result.text.isEmpty) continue;
 
           subtitles.add(Subtitle(
             index: subtitles.length + 1,
             start: chunkStart,
-            end: chunkStart + const Duration(seconds: _chunkSeconds),
-            data: text,
+            end: chunkStart + result.duration,
+            data: result.text,
           ));
         }
       } finally {
@@ -173,13 +173,17 @@ class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionServic
     return sherpa.OfflineRecognizer(sherpa.OfflineRecognizerConfig(model: modelConfig));
   }
 
-  String _transcribeChunk(sherpa.OfflineRecognizer recognizer, String wavPath) {
+  _ChunkResult _transcribeChunk(sherpa.OfflineRecognizer recognizer, String wavPath) {
     final stream = recognizer.createStream();
     try {
       final wave = sherpa.readWave(wavPath);
       stream.acceptWaveform(samples: wave.samples, sampleRate: wave.sampleRate);
       recognizer.decode(stream);
-      return recognizer.getResult(stream).text.trim();
+      final text = recognizer.getResult(stream).text.trim();
+      final durationMicros = wave.sampleRate == 0
+          ? 0
+          : (wave.samples.length * Duration.microsecondsPerSecond) ~/ wave.sampleRate;
+      return _ChunkResult(text: text, duration: Duration(microseconds: durationMicros));
     } finally {
       stream.free();
     }
@@ -408,4 +412,10 @@ class _MoonshineModelPaths {
     required this.decoder,
     required this.tokens,
   });
+}
+
+class _ChunkResult {
+  final String text;
+  final Duration duration;
+  const _ChunkResult({required this.text, required this.duration});
 }
