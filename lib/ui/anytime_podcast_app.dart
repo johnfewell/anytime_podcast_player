@@ -45,7 +45,6 @@ import 'package:anytime/services/secrets/secure_secrets_service.dart';
 import 'package:anytime/services/settings/mobile_settings_service.dart';
 import 'package:anytime/services/transcription/episode_transcription_service.dart';
 import 'package:anytime/services/transcription/openai_episode_transcription_service.dart';
-import 'package:anytime/services/transcription/whisper_episode_transcription_service.dart';
 import 'package:anytime/state/library_state.dart';
 import 'package:anytime/ui/library/discovery.dart';
 import 'package:anytime/ui/library/downloads.dart';
@@ -97,6 +96,7 @@ class AnytimePodcastApp extends StatefulWidget {
     super.key,
     required this.mobileSettingsService,
     required this.certificateAuthorityBytes,
+    required EpisodeTranscriptionService localTranscriptionService,
   }) : repository = SembastRepository() {
     podcastApi = MobilePodcastApi();
     notificationService = MobileNotificationService();
@@ -106,9 +106,6 @@ class AnytimePodcastApp extends StatefulWidget {
       secureSecretsService: secureSecretsService,
       backendService: Environment.hasAnalysisBackend ? BackendEpisodeAnalysisService() : null,
     );
-    final localTranscriptionService = !kIsWeb && (Platform.isAndroid || Platform.isIOS || Platform.isMacOS)
-        ? WhisperEpisodeTranscriptionService()
-        : DisabledEpisodeTranscriptionService();
     episodeTranscriptionService = ConfigurableEpisodeTranscriptionService(
       settingsService: mobileSettingsService,
       secureSecretsService: secureSecretsService,

@@ -1380,9 +1380,6 @@ class _SettingsState extends State<Settings> {
                           selected = option.value;
                         });
                         settingsBloc.setTranscriptUploadProvider(option.value);
-                        settingsBloc.setOnDemandAnalysisEnabled(
-                          option.value != TranscriptUploadProvider.disabled,
-                        );
                         Navigator.pop(dialogContext);
                         setState(() {});
                       },
