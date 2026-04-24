@@ -10,6 +10,7 @@ import 'package:anytime/entities/episode.dart';
 import 'package:anytime/entities/transcript.dart';
 import 'package:anytime/services/transcription/episode_transcription_service.dart';
 import 'package:archive/archive_io.dart';
+import 'package:crypto/crypto.dart';
 import 'package:ffmpeg_kit_flutter_new_min/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new_min/return_code.dart';
 import 'package:logging/logging.dart';
@@ -28,6 +29,10 @@ class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionServic
   static const _modelArchiveUrl =
       'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/'
       'sherpa-onnx-moonshine-tiny-en-quantized-2026-02-27.tar.bz2';
+  // SHA-256 of the pinned model archive. Fails closed if the upstream asset
+  // is swapped out so a tampered archive never reaches _extractTarBz2.
+  static const _modelArchiveSha256 =
+      '9ec31b342d8fa3240c3b81b8f82e1cf7e3ac467c93ca5a999b741d5887164f8d';
   static const _modelDirName = 'sherpa-onnx-moonshine-tiny-en-quantized-2026-02-27';
   static const _encoderFile = 'encoder_model.ort';
   static const _decoderFile = 'decoder_model_merged.ort';
@@ -279,10 +284,17 @@ class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionServic
 
       onProgress?.call(const EpisodeTranscriptionProgress(
         stage: EpisodeTranscriptionStage.preparing,
-        message: 'Extracting Moonshine model...',
+        message: 'Verifying Moonshine model...',
       ));
 
       try {
+        await _verifyArchiveSha256(tarballPath, _modelArchiveSha256);
+
+        onProgress?.call(const EpisodeTranscriptionProgress(
+          stage: EpisodeTranscriptionStage.preparing,
+          message: 'Extracting Moonshine model...',
+        ));
+
         await _extractTarBz2(tarballPath, modelRoot.path);
 
         if (!(encoder.existsSync() && decoder.existsSync() && tokens.existsSync())) {
@@ -358,6 +370,16 @@ class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionServic
       }
     } finally {
       client.close(force: true);
+    }
+  }
+
+  Future<void> _verifyArchiveSha256(String tarballPath, String expected) async {
+    final digest = await sha256.bind(File(tarballPath).openRead()).first;
+    final actual = digest.toString();
+    if (actual != expected) {
+      throw EpisodeTranscriptionException(
+        'Moonshine model archive SHA-256 mismatch: expected $expected, got $actual.',
+      );
     }
   }
 

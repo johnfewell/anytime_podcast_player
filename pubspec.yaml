@@ -58,6 +58,7 @@ dependencies:
   whisper_ggml: ^1.7.0
   xml: 6.5.0
   archive: ^4.0.0
+  crypto: ^3.0.0
   sherpa_onnx: ^1.12.39
 
   flutter:
