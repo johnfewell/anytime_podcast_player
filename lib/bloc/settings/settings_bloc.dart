@@ -51,6 +51,7 @@ class SettingsBloc extends Bloc {
   final BehaviorSubject<BackgroundAnalysisLocalModel> _backgroundLocalModel =
       BehaviorSubject<BackgroundAnalysisLocalModel>();
   final BehaviorSubject<bool> _backgroundAnalysisDiskCostAccepted = BehaviorSubject<bool>();
+  final BehaviorSubject<int> _moonshineChunkSeconds = BehaviorSubject<int>();
   final BehaviorSubject<bool> _onDemandAnalysisEnabled = BehaviorSubject<bool>();
   final BehaviorSubject<bool> _showAnalysisHistory = BehaviorSubject<bool>();
 
@@ -105,6 +106,7 @@ class SettingsBloc extends Bloc {
       backgroundAnalysisEnabled: settingsService.backgroundAnalysisEnabled,
       backgroundLocalModel: settingsService.backgroundLocalModel,
       backgroundAnalysisDiskCostAccepted: settingsService.backgroundAnalysisDiskCostAccepted,
+      moonshineChunkSeconds: settingsService.moonshineChunkSeconds,
       onDemandAnalysisEnabled: settingsService.onDemandAnalysisEnabled,
       showAnalysisHistory: settingsService.showAnalysisHistory,
     );
@@ -306,6 +308,13 @@ class SettingsBloc extends Bloc {
       settingsService.backgroundAnalysisDiskCostAccepted = accepted;
     });
 
+    _moonshineChunkSeconds.listen((seconds) {
+      final clamped = seconds.clamp(5, 30);
+      _currentSettings = _currentSettings.copyWith(moonshineChunkSeconds: clamped);
+      _settings.add(_currentSettings);
+      settingsService.moonshineChunkSeconds = clamped;
+    });
+
     _onDemandAnalysisEnabled.listen((enabled) {
       _currentSettings = _currentSettings.copyWith(onDemandAnalysisEnabled: enabled);
       _settings.add(_currentSettings);
@@ -406,6 +415,8 @@ class SettingsBloc extends Bloc {
   void Function(bool) get setBackgroundAnalysisDiskCostAccepted =>
       _backgroundAnalysisDiskCostAccepted.add;
 
+  void Function(int) get setMoonshineChunkSeconds => _moonshineChunkSeconds.add;
+
   void Function(bool) get setOnDemandAnalysisEnabled => _onDemandAnalysisEnabled.add;
 
   void Function(bool) get setShowAnalysisHistory => _showAnalysisHistory.add;
@@ -443,6 +454,7 @@ class SettingsBloc extends Bloc {
     _backgroundAnalysisEnabled.close();
     _backgroundLocalModel.close();
     _backgroundAnalysisDiskCostAccepted.close();
+    _moonshineChunkSeconds.close();
     _onDemandAnalysisEnabled.close();
     _showAnalysisHistory.close();
     _settings.close();

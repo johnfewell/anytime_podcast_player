@@ -264,6 +264,11 @@ class _SettingsState extends State<Settings> {
                       subtitle: _transcriptionProviderLabel(settings.transcriptionProvider),
                       onTap: () => _showTranscriptionProviderDialog(settings),
                     ),
+                    if (settings.transcriptionProvider == TranscriptionProvider.moonshine)
+                      _MoonshineChunkSlider(
+                        seconds: settings.moonshineChunkSeconds,
+                        onChanged: settingsBloc.setMoonshineChunkSeconds,
+                      ),
                     if (settings.transcriptionProvider == TranscriptionProvider.openAi)
                       FutureBuilder<String?>(
                         future: Provider.of<SecureSecretsService>(context, listen: false).read(openAiApiKeySecret),
@@ -1831,6 +1836,83 @@ class _ToggleSettingsTile extends StatelessWidget {
           Switch.adaptive(
             value: value,
             onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MoonshineChunkSlider extends StatelessWidget {
+  final int seconds;
+  final ValueChanged<int> onChanged;
+
+  static const _min = 5;
+  static const _max = 30;
+
+  const _MoonshineChunkSlider({
+    required this.seconds,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final value = seconds.clamp(_min, _max).toDouble();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14.0, 4.0, 14.0, 10.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Moonshine segment length',
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(999.0),
+                ),
+                child: Text(
+                  '${value.round()}s',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.colorScheme.onPrimaryFixed,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2.0),
+          Text(
+            'Audio is split into segments of this length before being transcribed.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          Slider(
+            value: value,
+            min: _min.toDouble(),
+            max: _max.toDouble(),
+            divisions: _max - _min,
+            label: '${value.round()}s',
+            onChanged: (v) => onChanged(v.round()),
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 2.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _ScaleLabel(label: '5s'),
+                _ScaleLabel(label: '30s'),
+              ],
+            ),
           ),
         ],
       ),

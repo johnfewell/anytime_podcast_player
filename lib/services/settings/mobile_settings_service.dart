@@ -404,6 +404,18 @@ class MobileSettingsService extends SettingsService {
   }
 
   @override
+  set moonshineChunkSeconds(int seconds) {
+    _sharedPreferences.setInt('moonshineChunkSeconds', seconds.clamp(5, 30));
+    settingsNotifier.sink.add('moonshineChunkSeconds');
+  }
+
+  @override
+  int get moonshineChunkSeconds {
+    final stored = _sharedPreferences.getInt('moonshineChunkSeconds') ?? 5;
+    return stored.clamp(5, 30);
+  }
+
+  @override
   set onDemandAnalysisEnabled(bool enabled) {
     _sharedPreferences.setBool('onDemandAnalysisEnabled', enabled);
     settingsNotifier.sink.add('onDemandAnalysisEnabled');

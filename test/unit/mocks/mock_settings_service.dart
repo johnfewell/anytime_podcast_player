@@ -101,6 +101,9 @@ class MockSettingsService extends SettingsService {
   bool backgroundAnalysisDiskCostAccepted = false;
 
   @override
+  int moonshineChunkSeconds = 5;
+
+  @override
   bool onDemandAnalysisEnabled = true;
 
   @override

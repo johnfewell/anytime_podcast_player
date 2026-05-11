@@ -22,7 +22,8 @@ import 'package:synchronized/synchronized.dart';
 /// On-device transcription service backed by Moonshine (v2 tiny, English-only,
 /// int8) via `sherpa_onnx`. Selected via the Transcription provider setting.
 class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionService {
-  MoonshineEpisodeTranscriptionService();
+  MoonshineEpisodeTranscriptionService({int Function()? chunkSeconds})
+      : _chunkSecondsResolver = chunkSeconds ?? _defaultChunkSeconds;
 
   static const _modelArchiveUrl =
       'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/'
@@ -35,7 +36,19 @@ class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionServic
   static const _encoderFile = 'encoder_model.ort';
   static const _decoderFile = 'decoder_model_merged.ort';
   static const _tokensFile = 'tokens.txt';
-  static const _chunkSeconds = 5;
+  static const _minChunkSeconds = 5;
+  static const _maxChunkSeconds = 30;
+
+  static int _defaultChunkSeconds() => _minChunkSeconds;
+
+  /// Resolves the current chunk length per transcription call, so the user's
+  /// settings slider takes effect on the very next run with no app restart.
+  /// Clamped to [_minChunkSeconds, _maxChunkSeconds] to keep ffmpeg segmenting
+  /// and progress reporting within tested bounds.
+  final int Function() _chunkSecondsResolver;
+
+  int get _chunkSeconds =>
+      _chunkSecondsResolver().clamp(_minChunkSeconds, _maxChunkSeconds);
   // Hard cap on the model archive download. The published asset is ~30 MB;
   // anything significantly larger is treated as an unexpected/replaced asset
   // and rejected to avoid filling storage or feeding a decompression bomb.
@@ -69,14 +82,18 @@ class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionServic
 
     final modelPaths = await _ensureModel(onProgress: onProgress);
 
-    onProgress?.call(const EpisodeTranscriptionProgress(
+    // Snapshot the chunk length once per run so the ffmpeg segment_time and
+    // the per-chunk timestamp math can't drift if the slider moves mid-run.
+    final chunkSeconds = _chunkSeconds;
+
+    onProgress?.call(EpisodeTranscriptionProgress(
       stage: EpisodeTranscriptionStage.preparing,
-      message: 'Chunking audio for Moonshine...',
+      message: 'Chunking audio for Moonshine (${chunkSeconds}s segments)...',
     ));
 
     final workDir = await _freshWorkDir();
     try {
-      final chunkPaths = await _splitTo16kMonoWavChunks(audioPath, workDir);
+      final chunkPaths = await _splitTo16kMonoWavChunks(audioPath, workDir, chunkSeconds);
       _log.info('Chunked audio into ${chunkPaths.length} files at ${workDir.path}');
       if (chunkPaths.isEmpty) {
         throw const EpisodeTranscriptionException(
@@ -99,7 +116,7 @@ class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionServic
 
       try {
         for (var i = 0; i < chunkPaths.length; i++) {
-          final chunkStart = Duration(seconds: i * _chunkSeconds);
+          final chunkStart = Duration(seconds: i * chunkSeconds);
           // Yield to the event loop so the progress dialog can repaint
           // between sync FFI calls.
           await Future<void>.delayed(Duration.zero);
@@ -199,11 +216,12 @@ class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionServic
   }
 
   /// Runs ffmpeg once to emit N 16kHz mono pcm_s16le WAV chunks of
-  /// [_chunkSeconds] each using the segment muxer. Returns chunk paths in
+  /// [chunkSeconds] each using the segment muxer. Returns chunk paths in
   /// order.
   Future<List<String>> _splitTo16kMonoWavChunks(
     String inputPath,
     Directory outDir,
+    int chunkSeconds,
   ) async {
     final pattern = path.join(outDir.path, 'chunk_%03d.wav');
     final args = <String>[
@@ -214,7 +232,7 @@ class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionServic
       '-ar', '16000',
       '-c:a', 'pcm_s16le',
       '-f', 'segment',
-      '-segment_time', '$_chunkSeconds',
+      '-segment_time', '$chunkSeconds',
       '-reset_timestamps', '1',
       pattern,
     ];

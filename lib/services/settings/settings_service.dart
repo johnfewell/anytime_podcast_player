@@ -125,6 +125,10 @@ abstract class SettingsService {
 
   bool get backgroundAnalysisDiskCostAccepted;
 
+  set moonshineChunkSeconds(int seconds);
+
+  int get moonshineChunkSeconds;
+
   set onDemandAnalysisEnabled(bool enabled);
 
   bool get onDemandAnalysisEnabled;

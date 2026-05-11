@@ -47,6 +47,7 @@ void main() async {
 
   final localTranscriptionService = await buildLocalTranscriptionService(
     mobileSettingsService.transcriptionProvider,
+    moonshineChunkSeconds: () => mobileSettingsService.moonshineChunkSeconds,
   );
 
   runApp(AnytimePodcastApp(

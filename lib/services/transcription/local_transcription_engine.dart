@@ -11,14 +11,17 @@ import 'package:anytime/services/transcription/whisper_episode_transcription_ser
 import 'package:flutter/foundation.dart';
 
 Future<EpisodeTranscriptionService> buildLocalTranscriptionService(
-  TranscriptionProvider provider,
-) async {
+  TranscriptionProvider provider, {
+  int Function()? moonshineChunkSeconds,
+}) async {
   if (kIsWeb || !(Platform.isAndroid || Platform.isIOS || Platform.isMacOS)) {
     return DisabledEpisodeTranscriptionService();
   }
 
   if (provider == TranscriptionProvider.moonshine) {
-    return MoonshineEpisodeTranscriptionService();
+    return MoonshineEpisodeTranscriptionService(
+      chunkSeconds: moonshineChunkSeconds,
+    );
   }
 
   return WhisperEpisodeTranscriptionService();
