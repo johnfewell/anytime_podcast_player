@@ -704,6 +704,8 @@ class _SettingsState extends State<Settings> {
     switch (provider) {
       case TranscriptionProvider.localAi:
         return 'On-device Whisper';
+      case TranscriptionProvider.moonshine:
+        return 'On-device Moonshine';
       case TranscriptionProvider.openAi:
         return 'OpenAI Whisper API';
     }
@@ -1404,6 +1406,7 @@ class _SettingsState extends State<Settings> {
     final settingsBloc = Provider.of<SettingsBloc>(context, listen: false);
     final options = <_ValueLabel<TranscriptionProvider>>[
       const _ValueLabel(TranscriptionProvider.localAi, 'On-device Whisper'),
+      const _ValueLabel(TranscriptionProvider.moonshine, 'On-device Moonshine'),
       const _ValueLabel(TranscriptionProvider.openAi, 'OpenAI Whisper API'),
     ];
 

@@ -45,7 +45,9 @@ void main() async {
     await Workmanager().initialize(backgroundAnalysisCallbackDispatcher);
   }
 
-  final localTranscriptionService = await buildLocalTranscriptionService();
+  final localTranscriptionService = await buildLocalTranscriptionService(
+    mobileSettingsService.transcriptionProvider,
+  );
 
   runApp(AnytimePodcastApp(
     mobileSettingsService: mobileSettingsService,

@@ -19,10 +19,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
 import 'package:synchronized/synchronized.dart';
 
-/// Prototype on-device transcription service backed by Moonshine (v2 tiny,
-/// English-only, int8) via `sherpa_onnx`. Gated behind a dev-only file flag:
-/// create `<app-support>/use_moonshine` to switch local transcription from
-/// Whisper to this implementation. Not yet surfaced in the settings UI.
+/// On-device transcription service backed by Moonshine (v2 tiny, English-only,
+/// int8) via `sherpa_onnx`. Selected via the Transcription provider setting.
 class MoonshineEpisodeTranscriptionService implements EpisodeTranscriptionService {
   MoonshineEpisodeTranscriptionService();
 

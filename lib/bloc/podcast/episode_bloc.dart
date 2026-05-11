@@ -207,14 +207,19 @@ class EpisodeBloc extends Bloc {
 
     transcript.guid = episode.guid;
 
+    final activeProvider = settingsService.transcriptionProvider;
+
     if (!transcript.isAppGeneratedAiTranscript) {
-      transcript.provenance = settingsService.transcriptionProvider == TranscriptionProvider.openAi
+      transcript.provenance = activeProvider == TranscriptionProvider.openAi
           ? TranscriptProvenance.openAi
           : TranscriptProvenance.localAi;
     }
 
-    transcript.provider ??=
-        settingsService.transcriptionProvider == TranscriptionProvider.openAi ? 'whisper-1' : 'whisper';
+    transcript.provider ??= switch (activeProvider) {
+      TranscriptionProvider.openAi => 'whisper-1',
+      TranscriptionProvider.moonshine => 'moonshine',
+      TranscriptionProvider.localAi => 'whisper',
+    };
 
     return _persistTranscriptReplacement(
       episode,
