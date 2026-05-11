@@ -12,7 +12,7 @@ import 'package:anytime/services/analysis/background/background_analysis_worker.
 import 'package:anytime/services/analysis/background/gemma_ad_analyzer.dart';
 import 'package:anytime/services/analysis/background/model_download_service.dart';
 import 'package:anytime/services/settings/mobile_settings_service.dart';
-import 'package:anytime/services/transcription/whisper_episode_transcription_service.dart';
+import 'package:anytime/services/transcription/local_transcription_engine.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:logging/logging.dart';
@@ -70,7 +70,7 @@ Future<void> runBackgroundAnalysisOnce() async {
   final analysisService = DefaultBackgroundAnalysisService(repository);
 
   try {
-    final transcriptionService = WhisperEpisodeTranscriptionService();
+    final transcriptionService = await buildLocalTranscriptionService();
 
     final variant = settingsService.backgroundLocalModel;
     var modelId = AnalysisModelCatalog.modelIdFor(variant);

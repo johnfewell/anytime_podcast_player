@@ -57,6 +57,9 @@ dependencies:
   wakelock_plus: ^1.4.0
   whisper_ggml: ^1.7.0
   xml: 6.5.0
+  archive: ^4.0.0
+  crypto: ^3.0.0
+  sherpa_onnx: ^1.12.39
 
   flutter:
     sdk: flutter

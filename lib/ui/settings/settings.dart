@@ -289,18 +289,13 @@ class _SettingsState extends State<Settings> {
                 const _SectionLabel(label: 'On-demand analysis'),
                 _SettingsCard(
                   children: [
-                    _ToggleSettingsTile(
-                      title: 'Enable "Analyze now" (Gemini)',
-                      subtitle: 'Uploads audio to Google Gemini to detect ads on demand.',
-                      value: settings.onDemandAnalysisEnabled,
-                      onChanged: (enabled) {
-                        settingsBloc.setOnDemandAnalysisEnabled(enabled);
-                        settingsBloc.setTranscriptUploadProvider(
-                          enabled ? TranscriptUploadProvider.gemini : TranscriptUploadProvider.disabled,
-                        );
-                      },
+                    _ActionSettingsTile(
+                      icon: Icons.cloud_upload_outlined,
+                      title: 'On-demand analysis provider',
+                      subtitle: _analysisProviderLabel(settings.transcriptUploadProvider),
+                      onTap: () => _showAnalysisProviderDialog(settings),
                     ),
-                    if (settings.onDemandAnalysisEnabled) ...[
+                    if (settings.transcriptUploadProvider == TranscriptUploadProvider.gemini) ...[
                       FutureBuilder<String?>(
                         future: Provider.of<SecureSecretsService>(context, listen: false).read(geminiApiKeySecret),
                         builder: (context, snapshot) {
@@ -320,6 +315,52 @@ class _SettingsState extends State<Settings> {
                         icon: Icons.tune_outlined,
                         title: 'Gemini model',
                         subtitle: settings.geminiAnalysisModel,
+                        onTap: () => _showAnalysisModelDialog(settings),
+                      ),
+                    ],
+                    if (settings.transcriptUploadProvider == TranscriptUploadProvider.openAi) ...[
+                      FutureBuilder<String?>(
+                        future: Provider.of<SecureSecretsService>(context, listen: false).read(openAiApiKeySecret),
+                        builder: (context, snapshot) {
+                          return _ActionSettingsTile(
+                            icon: Icons.vpn_key_outlined,
+                            title: 'OpenAI API key',
+                            subtitle: _apiKeyLabel(snapshot.data),
+                            onTap: () => _showApiKeyDialog(
+                              title: 'OpenAI API key',
+                              secretKey: openAiApiKeySecret,
+                              hintText: 'sk-...',
+                            ),
+                          );
+                        },
+                      ),
+                      _ActionSettingsTile(
+                        icon: Icons.tune_outlined,
+                        title: 'OpenAI model',
+                        subtitle: settings.openAiAnalysisModel,
+                        onTap: () => _showAnalysisModelDialog(settings),
+                      ),
+                    ],
+                    if (settings.transcriptUploadProvider == TranscriptUploadProvider.grok) ...[
+                      FutureBuilder<String?>(
+                        future: Provider.of<SecureSecretsService>(context, listen: false).read(grokApiKeySecret),
+                        builder: (context, snapshot) {
+                          return _ActionSettingsTile(
+                            icon: Icons.vpn_key_outlined,
+                            title: 'Grok API key',
+                            subtitle: _apiKeyLabel(snapshot.data),
+                            onTap: () => _showApiKeyDialog(
+                              title: 'Grok API key',
+                              secretKey: grokApiKeySecret,
+                              hintText: 'xai-...',
+                            ),
+                          );
+                        },
+                      ),
+                      _ActionSettingsTile(
+                        icon: Icons.tune_outlined,
+                        title: 'Grok model',
+                        subtitle: settings.grokAnalysisModel,
                         onTap: () => _showAnalysisModelDialog(settings),
                       ),
                     ],
@@ -665,6 +706,41 @@ class _SettingsState extends State<Settings> {
         return 'On-device Whisper';
       case TranscriptionProvider.openAi:
         return 'OpenAI Whisper API';
+    }
+  }
+
+  String _analysisProviderLabel(TranscriptUploadProvider provider) {
+    switch (provider) {
+      case TranscriptUploadProvider.disabled:
+        return 'Disabled';
+      case TranscriptUploadProvider.openAi:
+        return 'OpenAI (transcript upload)';
+      case TranscriptUploadProvider.grok:
+        return 'Grok (transcript upload)';
+      case TranscriptUploadProvider.gemini:
+        return 'Gemini (audio-direct)';
+      case TranscriptUploadProvider.analysisBackend:
+        return 'Private backend';
+    }
+  }
+
+  bool _supportsAnalysisModelSelection(TranscriptUploadProvider provider) {
+    return provider == TranscriptUploadProvider.openAi ||
+        provider == TranscriptUploadProvider.grok ||
+        provider == TranscriptUploadProvider.gemini;
+  }
+
+  String _currentAnalysisModel(AppSettings settings, TranscriptUploadProvider provider) {
+    switch (provider) {
+      case TranscriptUploadProvider.openAi:
+        return settings.openAiAnalysisModel;
+      case TranscriptUploadProvider.grok:
+        return settings.grokAnalysisModel;
+      case TranscriptUploadProvider.gemini:
+        return settings.geminiAnalysisModel;
+      case TranscriptUploadProvider.disabled:
+      case TranscriptUploadProvider.analysisBackend:
+        return '';
     }
   }
 
@@ -1145,7 +1221,7 @@ class _SettingsState extends State<Settings> {
   Future<void> _showAnalysisModelDialog(AppSettings settings) async {
     final provider = settings.transcriptUploadProvider;
 
-    if (provider != TranscriptUploadProvider.gemini) {
+    if (!_supportsAnalysisModelSelection(provider)) {
       return;
     }
 
@@ -1155,7 +1231,7 @@ class _SettingsState extends State<Settings> {
       secureSecretsService: secureSecretsService,
     );
     final loadModels = catalogService.listModels(provider: provider);
-    final currentModel = settings.geminiAnalysisModel;
+    final currentModel = _currentAnalysisModel(settings, provider);
 
     await showPlatformDialog<void>(
       context: context,
@@ -1264,6 +1340,64 @@ class _SettingsState extends State<Settings> {
     );
 
     catalogService.close();
+  }
+
+  Future<void> _showAnalysisProviderDialog(AppSettings settings) async {
+    final settingsBloc = Provider.of<SettingsBloc>(context, listen: false);
+    final options = <_ValueLabel<TranscriptUploadProvider>>[
+      const _ValueLabel(TranscriptUploadProvider.disabled, 'Disabled'),
+      const _ValueLabel(TranscriptUploadProvider.gemini, 'Gemini (audio-direct)'),
+      const _ValueLabel(TranscriptUploadProvider.openAi, 'OpenAI (transcript upload)'),
+      const _ValueLabel(TranscriptUploadProvider.grok, 'Grok (transcript upload)'),
+      if (Environment.hasAnalysisBackend ||
+          settings.transcriptUploadProvider == TranscriptUploadProvider.analysisBackend)
+        const _ValueLabel(TranscriptUploadProvider.analysisBackend, 'Private backend'),
+    ];
+
+    await showPlatformDialog<void>(
+      context: context,
+      useRootNavigator: false,
+      builder: (dialogContext) {
+        var selected = settings.transcriptUploadProvider;
+
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(
+                'On-demand analysis provider',
+                style: Theme.of(context).textTheme.titleMedium,
+                textAlign: TextAlign.center,
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final option in options)
+                    _SelectionDialogTile(
+                      title: option.label,
+                      selected: selected == option.value,
+                      onTap: () {
+                        setDialogState(() {
+                          selected = option.value;
+                        });
+                        settingsBloc.setTranscriptUploadProvider(option.value);
+                        Navigator.pop(dialogContext);
+                        setState(() {});
+                      },
+                    ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: ActionText(L.of(context)!.close_button_label),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _showTranscriptionProviderDialog(AppSettings settings) async {
