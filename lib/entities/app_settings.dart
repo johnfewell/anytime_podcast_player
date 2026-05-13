@@ -130,11 +130,6 @@ class AppSettings {
   /// bypass the dialog once this flag is set.
   final bool backgroundAnalysisDiskCostAccepted;
 
-  /// Length in seconds of each audio segment Moonshine slices the episode into
-  /// before transcribing. Clamped to [5, 30] in the UI; ignored when a
-  /// non-Moonshine transcription provider is selected.
-  final int moonshineChunkSeconds;
-
   /// Whether the on-demand Gemini "Analyze now" action is enabled.
   final bool onDemandAnalysisEnabled;
 
@@ -173,7 +168,6 @@ class AppSettings {
     required this.backgroundAnalysisEnabled,
     required this.backgroundLocalModel,
     required this.backgroundAnalysisDiskCostAccepted,
-    required this.moonshineChunkSeconds,
     required this.onDemandAnalysisEnabled,
     required this.showAnalysisHistory,
   });
@@ -209,7 +203,6 @@ class AppSettings {
         backgroundAnalysisEnabled = false,
         backgroundLocalModel = BackgroundAnalysisLocalModel.gemma4E2B,
         backgroundAnalysisDiskCostAccepted = false,
-        moonshineChunkSeconds = 5,
         onDemandAnalysisEnabled = true,
         showAnalysisHistory = false;
 
@@ -245,7 +238,6 @@ class AppSettings {
     bool? backgroundAnalysisEnabled,
     BackgroundAnalysisLocalModel? backgroundLocalModel,
     bool? backgroundAnalysisDiskCostAccepted,
-    int? moonshineChunkSeconds,
     bool? onDemandAnalysisEnabled,
     bool? showAnalysisHistory,
   }) =>
@@ -281,7 +273,6 @@ class AppSettings {
         backgroundLocalModel: backgroundLocalModel ?? this.backgroundLocalModel,
         backgroundAnalysisDiskCostAccepted:
             backgroundAnalysisDiskCostAccepted ?? this.backgroundAnalysisDiskCostAccepted,
-        moonshineChunkSeconds: moonshineChunkSeconds ?? this.moonshineChunkSeconds,
         onDemandAnalysisEnabled: onDemandAnalysisEnabled ?? this.onDemandAnalysisEnabled,
         showAnalysisHistory: showAnalysisHistory ?? this.showAnalysisHistory,
       );

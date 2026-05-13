@@ -136,8 +136,8 @@ class _SettingsState extends State<Settings> {
   }
 
   Future<void> _cancelGemmaDownload(BackgroundAnalysisLocalModel variant) async {
-    await _downloadSub?.cancel();
     final service = Provider.of<GemmaModelDownloadService>(context, listen: false);
+    await _downloadSub?.cancel();
     try {
       await service.delete(variant);
     } catch (_) {}
@@ -264,11 +264,6 @@ class _SettingsState extends State<Settings> {
                       subtitle: _transcriptionProviderLabel(settings.transcriptionProvider),
                       onTap: () => _showTranscriptionProviderDialog(settings),
                     ),
-                    if (settings.transcriptionProvider == TranscriptionProvider.moonshine)
-                      _MoonshineChunkSlider(
-                        seconds: settings.moonshineChunkSeconds,
-                        onChanged: settingsBloc.setMoonshineChunkSeconds,
-                      ),
                     if (settings.transcriptionProvider == TranscriptionProvider.openAi)
                       FutureBuilder<String?>(
                         future: Provider.of<SecureSecretsService>(context, listen: false).read(openAiApiKeySecret),
@@ -859,9 +854,7 @@ class _SettingsState extends State<Settings> {
           title: 'Auto-analyze downloaded episodes',
           subtitle: _backgroundAnalysisSubtitle(),
           value: sectionEnabled,
-          onChanged: supported
-              ? (enabled) => _handleBackgroundAnalysisToggle(settingsBloc, settings, enabled)
-              : (_) {},
+          onChanged: supported ? (enabled) => _handleBackgroundAnalysisToggle(settingsBloc, settings, enabled) : (_) {},
         ),
         if (sectionEnabled) ...[
           _ActionSettingsTile(
@@ -886,9 +879,7 @@ class _SettingsState extends State<Settings> {
             _ActionSettingsTile(
               icon: Icons.play_arrow_outlined,
               title: 'Run background analysis now (dev)',
-              subtitle: _runningBackgroundAnalysis
-                  ? 'Running…'
-                  : 'Processes the next queued episode on the UI isolate',
+              subtitle: _runningBackgroundAnalysis ? 'Running…' : 'Processes the next queued episode on the UI isolate',
               onTap: _runBackgroundAnalysisNow,
             ),
         ],
@@ -1175,8 +1166,10 @@ class _SettingsState extends State<Settings> {
   Future<void> _showBackgroundLocalModelDialog(AppSettings settings) async {
     final settingsBloc = Provider.of<SettingsBloc>(context, listen: false);
     final options = <_ValueLabel<BackgroundAnalysisLocalModel>>[
-      _ValueLabel(BackgroundAnalysisLocalModel.gemma4E2B, _backgroundLocalModelLabel(BackgroundAnalysisLocalModel.gemma4E2B)),
-      _ValueLabel(BackgroundAnalysisLocalModel.gemma4E4B, _backgroundLocalModelLabel(BackgroundAnalysisLocalModel.gemma4E4B)),
+      _ValueLabel(
+          BackgroundAnalysisLocalModel.gemma4E2B, _backgroundLocalModelLabel(BackgroundAnalysisLocalModel.gemma4E2B)),
+      _ValueLabel(
+          BackgroundAnalysisLocalModel.gemma4E4B, _backgroundLocalModelLabel(BackgroundAnalysisLocalModel.gemma4E4B)),
     ];
 
     await showPlatformDialog<void>(
@@ -1843,83 +1836,6 @@ class _ToggleSettingsTile extends StatelessWidget {
   }
 }
 
-class _MoonshineChunkSlider extends StatelessWidget {
-  final int seconds;
-  final ValueChanged<int> onChanged;
-
-  static const _min = 5;
-  static const _max = 30;
-
-  const _MoonshineChunkSlider({
-    required this.seconds,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final value = seconds.clamp(_min, _max).toDouble();
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14.0, 4.0, 14.0, 10.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Moonshine segment length',
-                  style: theme.textTheme.titleMedium,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(999.0),
-                ),
-                child: Text(
-                  '${value.round()}s',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: theme.colorScheme.onPrimaryFixed,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 2.0),
-          Text(
-            'Audio is split into segments of this length before being transcribed.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          Slider(
-            value: value,
-            min: _min.toDouble(),
-            max: _max.toDouble(),
-            divisions: _max - _min,
-            label: '${value.round()}s',
-            onChanged: (v) => onChanged(v.round()),
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 2.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _ScaleLabel(label: '5s'),
-                _ScaleLabel(label: '30s'),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _SpeedControlCard extends StatelessWidget {
   final double speed;
   final ValueChanged<double> onChanged;
@@ -2354,12 +2270,9 @@ class _BackgroundAnalysisRunPageState extends State<_BackgroundAnalysisRunPage> 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final status = _done
-        ? (_failed ? 'Failed: $_error' : 'Pass complete')
-        : 'Running…';
-    final statusColor = _done
-        ? (_failed ? theme.colorScheme.error : theme.colorScheme.primary)
-        : theme.colorScheme.primary;
+    final status = _done ? (_failed ? 'Failed: $_error' : 'Pass complete') : 'Running…';
+    final statusColor =
+        _done ? (_failed ? theme.colorScheme.error : theme.colorScheme.primary) : theme.colorScheme.primary;
 
     return Scaffold(
       appBar: AppBar(

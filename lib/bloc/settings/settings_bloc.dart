@@ -51,7 +51,6 @@ class SettingsBloc extends Bloc {
   final BehaviorSubject<BackgroundAnalysisLocalModel> _backgroundLocalModel =
       BehaviorSubject<BackgroundAnalysisLocalModel>();
   final BehaviorSubject<bool> _backgroundAnalysisDiskCostAccepted = BehaviorSubject<bool>();
-  final BehaviorSubject<int> _moonshineChunkSeconds = BehaviorSubject<int>();
   final BehaviorSubject<bool> _onDemandAnalysisEnabled = BehaviorSubject<bool>();
   final BehaviorSubject<bool> _showAnalysisHistory = BehaviorSubject<bool>();
 
@@ -61,8 +60,7 @@ class SettingsBloc extends Bloc {
     required this.settingsService,
     required this.notificationService,
     BackgroundAnalysisScheduler? backgroundAnalysisScheduler,
-  })  : backgroundAnalysisScheduler =
-            backgroundAnalysisScheduler ?? const NoopBackgroundAnalysisScheduler() {
+  }) : backgroundAnalysisScheduler = backgroundAnalysisScheduler ?? const NoopBackgroundAnalysisScheduler() {
     _init();
   }
 
@@ -106,7 +104,6 @@ class SettingsBloc extends Bloc {
       backgroundAnalysisEnabled: settingsService.backgroundAnalysisEnabled,
       backgroundLocalModel: settingsService.backgroundLocalModel,
       backgroundAnalysisDiskCostAccepted: settingsService.backgroundAnalysisDiskCostAccepted,
-      moonshineChunkSeconds: settingsService.moonshineChunkSeconds,
       onDemandAnalysisEnabled: settingsService.onDemandAnalysisEnabled,
       showAnalysisHistory: settingsService.showAnalysisHistory,
     );
@@ -287,9 +284,9 @@ class SettingsBloc extends Bloc {
       settingsService.backgroundAnalysisEnabled = enabled;
       try {
         if (enabled) {
-          await this.backgroundAnalysisScheduler.schedule();
+          await backgroundAnalysisScheduler.schedule();
         } else {
-          await this.backgroundAnalysisScheduler.cancel();
+          await backgroundAnalysisScheduler.cancel();
         }
       } catch (error, stack) {
         log.warning('Failed to update background analysis schedule', error, stack);
@@ -306,13 +303,6 @@ class SettingsBloc extends Bloc {
       _currentSettings = _currentSettings.copyWith(backgroundAnalysisDiskCostAccepted: accepted);
       _settings.add(_currentSettings);
       settingsService.backgroundAnalysisDiskCostAccepted = accepted;
-    });
-
-    _moonshineChunkSeconds.listen((seconds) {
-      final clamped = seconds.clamp(5, 30);
-      _currentSettings = _currentSettings.copyWith(moonshineChunkSeconds: clamped);
-      _settings.add(_currentSettings);
-      settingsService.moonshineChunkSeconds = clamped;
     });
 
     _onDemandAnalysisEnabled.listen((enabled) {
@@ -412,10 +402,7 @@ class SettingsBloc extends Bloc {
 
   void Function(BackgroundAnalysisLocalModel) get setBackgroundLocalModel => _backgroundLocalModel.add;
 
-  void Function(bool) get setBackgroundAnalysisDiskCostAccepted =>
-      _backgroundAnalysisDiskCostAccepted.add;
-
-  void Function(int) get setMoonshineChunkSeconds => _moonshineChunkSeconds.add;
+  void Function(bool) get setBackgroundAnalysisDiskCostAccepted => _backgroundAnalysisDiskCostAccepted.add;
 
   void Function(bool) get setOnDemandAnalysisEnabled => _onDemandAnalysisEnabled.add;
 
@@ -454,7 +441,6 @@ class SettingsBloc extends Bloc {
     _backgroundAnalysisEnabled.close();
     _backgroundLocalModel.close();
     _backgroundAnalysisDiskCostAccepted.close();
-    _moonshineChunkSeconds.close();
     _onDemandAnalysisEnabled.close();
     _showAnalysisHistory.close();
     _settings.close();

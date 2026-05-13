@@ -72,7 +72,6 @@ Future<void> runBackgroundAnalysisOnce() async {
   try {
     final transcriptionService = await buildLocalTranscriptionService(
       settingsService.transcriptionProvider,
-      moonshineChunkSeconds: () => settingsService.moonshineChunkSeconds,
     );
 
     final variant = settingsService.backgroundLocalModel;
