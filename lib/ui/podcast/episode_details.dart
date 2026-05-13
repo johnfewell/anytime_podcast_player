@@ -594,7 +594,7 @@ class EpisodeAnalysisPanel extends StatelessWidget {
     if (isGemini) {
       return 'Analyze Audio';
     }
-    return _canAnalyze(episode) ? 'Analyze Ads' : 'Transcribe & Analyze';
+    return _canAnalyze(episode) ? 'Detect Ads' : 'Transcribe & Detect Ads';
   }
 
   String _transcriptActionLabel(Episode episode) {
@@ -626,9 +626,9 @@ class EpisodeAnalysisPanel extends StatelessWidget {
     switch (provider) {
       case TranscriptionProvider.localAi:
       case TranscriptionProvider.moonshine:
-        return 'Transcribe and Analyze?';
+        return 'Transcribe and Detect Ads?';
       case TranscriptionProvider.openAi:
-        return 'Transcribe and Analyze with OpenAI?';
+        return 'Transcribe and Detect Ads with OpenAI?';
     }
   }
 
@@ -820,7 +820,15 @@ class _AnalysisHistoryDiagnostics extends StatelessWidget {
           const SizedBox(height: 8.0),
           ...history.map((record) {
             final completed = DateTime.fromMillisecondsSinceEpoch(record.completedAtMs).toLocal().toIso8601String();
-            final marker = record.active ? '● active' : '○ superseded';
+            final String marker;
+            if (record.isFailure) {
+              marker = '✕ failed';
+            } else if (record.active) {
+              marker = '● active';
+            } else {
+              marker = '○ superseded';
+            }
+            final errorStyle = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error);
             return Padding(
               padding: const EdgeInsets.only(bottom: 8.0),
               child: Column(
@@ -834,6 +842,8 @@ class _AnalysisHistoryDiagnostics extends StatelessWidget {
                   Text(completed, style: theme.textTheme.bodySmall),
                   if (record.status != null && record.status!.isNotEmpty)
                     Text('status: ${record.status}', style: theme.textTheme.bodySmall),
+                  if (record.error != null && record.error!.isNotEmpty)
+                    Text('reason: ${record.error}', style: errorStyle),
                 ],
               ),
             );

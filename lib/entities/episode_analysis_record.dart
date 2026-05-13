@@ -39,6 +39,11 @@ class EpisodeAnalysisRecord {
   /// Optional free-form status notes ('partial', 'degraded', 'ok').
   final String? status;
 
+  /// Error/reason text when the analysis run failed. `null` for successful
+  /// runs. A non-null value indicates the record is a failure marker and must
+  /// not be activated by the supersession resolver.
+  final String? error;
+
   const EpisodeAnalysisRecord({
     required this.provider,
     required this.modelId,
@@ -46,7 +51,10 @@ class EpisodeAnalysisRecord {
     required this.adSegments,
     required this.active,
     this.status,
+    this.error,
   });
+
+  bool get isFailure => error != null;
 
   EpisodeAnalysisRecord copyWith({
     String? provider,
@@ -55,6 +63,7 @@ class EpisodeAnalysisRecord {
     List<AdSegment>? adSegments,
     bool? active,
     String? status,
+    String? error,
   }) {
     return EpisodeAnalysisRecord(
       provider: provider ?? this.provider,
@@ -63,6 +72,7 @@ class EpisodeAnalysisRecord {
       adSegments: adSegments ?? this.adSegments,
       active: active ?? this.active,
       status: status ?? this.status,
+      error: error ?? this.error,
     );
   }
 
@@ -73,6 +83,7 @@ class EpisodeAnalysisRecord {
       'completedAtMs': completedAtMs.toString(),
       'active': active ? 'true' : 'false',
       'status': status,
+      'error': error,
       'adSegments': adSegments.map((s) => s.toMap()).toList(growable: false),
     };
   }
@@ -96,6 +107,7 @@ class EpisodeAnalysisRecord {
       adSegments: segments,
       active: map['active'] == 'true' || map['active'] == true,
       status: map['status'] as String?,
+      error: map['error'] as String?,
     );
   }
 
@@ -119,6 +131,7 @@ class EpisodeAnalysisRecord {
           completedAtMs == other.completedAtMs &&
           active == other.active &&
           status == other.status &&
+          error == other.error &&
           _listEquals(adSegments, other.adSegments);
 
   @override
@@ -128,6 +141,7 @@ class EpisodeAnalysisRecord {
       completedAtMs.hashCode ^
       active.hashCode ^
       status.hashCode ^
+      error.hashCode ^
       adSegments.hashCode;
 
   static bool _listEquals(List<AdSegment> left, List<AdSegment> right) {

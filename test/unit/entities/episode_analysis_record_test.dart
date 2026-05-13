@@ -69,6 +69,38 @@ void main() {
       expect(fromString.active, isTrue);
     });
 
+    test('round-trips an error and exposes isFailure', () {
+      final failure = EpisodeAnalysisRecord(
+        provider: AnalysisProvider.grok,
+        modelId: 'grok-4.3',
+        completedAtMs: 7,
+        adSegments: const <AdSegment>[],
+        active: false,
+        status: 'failed',
+        error: 'Grok analysis timed out. Try again.',
+      );
+
+      final restored = EpisodeAnalysisRecord.fromMap(failure.toMap());
+
+      expect(restored, failure);
+      expect(restored.isFailure, isTrue);
+      expect(restored.error, 'Grok analysis timed out. Try again.');
+      expect(restored.status, 'failed');
+    });
+
+    test('successful records report isFailure false', () {
+      final ok = EpisodeAnalysisRecord(
+        provider: AnalysisProvider.grok,
+        modelId: 'grok-4-fast',
+        completedAtMs: 1,
+        adSegments: const <AdSegment>[],
+        active: true,
+      );
+
+      expect(ok.isFailure, isFalse);
+      expect(ok.error, isNull);
+    });
+
     test('copyWith preserves unspecified fields', () {
       final record = EpisodeAnalysisRecord(
         provider: AnalysisProvider.geminiAudio,

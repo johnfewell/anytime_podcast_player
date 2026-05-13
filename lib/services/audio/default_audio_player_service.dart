@@ -135,6 +135,11 @@ class DefaultAudioPlayerService extends AudioPlayerService {
       _handleAudioServiceTransitions();
       _loadQueue();
     });
+
+    // Refresh the in-memory transcript when the bloc persists a new transcript
+    // for the currently playing episode mid-playback. The service singleton
+    // lives for the app's lifetime, so we leak no subscription.
+    repository.episodeListener.listen(_onRepositoryEpisodeUpdate);
   }
 
   @override
@@ -873,6 +878,42 @@ class DefaultAudioPlayerService extends AudioPlayerService {
     } else {
       log.fine(' - Cannot save position as episode is null');
     }
+  }
+
+  Future<void> _onRepositoryEpisodeUpdate(EpisodeState state) async {
+    final current = _currentEpisode;
+    if (current == null) return;
+
+    final updated = state.episode;
+    if (updated.guid != current.guid) return;
+
+    final newTid = updated.transcriptId ?? 0;
+    final curTid = current.transcriptId ?? 0;
+    if (newTid == curTid) return;
+
+    log.fine(
+      'Repository signalled transcript change for ${current.guid}: $curTid -> $newTid',
+    );
+
+    current.transcriptId = updated.transcriptId;
+
+    if (newTid > 0) {
+      final transcript = await repository.findTranscriptById(newTid);
+      if (transcript == null) {
+        log.warning('Transcript $newTid for ${current.guid} not found after update.');
+        return;
+      }
+      current.transcript = transcript;
+      _currentTranscript = transcript;
+      _updateTranscriptState();
+    } else {
+      current.transcript = null;
+      _currentTranscript = null;
+      _updateTranscriptState(state: TranscriptUnavailableState());
+    }
+
+    _broadcastEpisodePosition(current);
+    _updateEpisodeState();
   }
 
   Future<Episode> _preserveStoredAiMetadata(Episode episode) async {

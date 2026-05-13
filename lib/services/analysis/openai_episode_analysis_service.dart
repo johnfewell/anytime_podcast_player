@@ -157,13 +157,19 @@ class OpenAIEpisodeAnalysisService implements EpisodeAnalysisService {
         _modelResolver = modelResolver;
 
   static const jobIdPrefix = 'openai:';
-  static const _maxWindowChars = 12000;
+  // Original 12000 was sized for Gemini Flash Lite's smaller attention budget.
+  // grok-4.x / openai reasoning models handle ~40 KB windows reliably in
+  // strict JSON-schema mode, cutting per-episode request counts by ~3x.
+  static const _maxWindowChars = 40000;
   static const _windowOverlapCues = 4;
   static const _episodeContextMaxChars = 9000;
   static const _episodeContextBoundaryCueCount = 12;
   static const _episodeContextDistributedCueCount = 24;
   static const _candidateReviewExcerptRadius = 3;
-  static const _requestTimeout = Duration(seconds: 45);
+  // grok-4.x reasoning variants with strict JSON-schema output regularly take
+  // 60–150s per window. Gemini's analysis path is already at 120s; keep this a
+  // bit higher to cover the slower xai reasoning models.
+  static const _requestTimeout = Duration(seconds: 180);
 
   final SecureSecretsService secureSecretsService;
   final http.Client _client;
