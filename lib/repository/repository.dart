@@ -70,6 +70,8 @@ abstract class Repository {
 
   Future<Transcript?> findTranscriptById(int id);
 
+  Future<List<Transcript>> findTranscriptsByGuid(String guid);
+
   Future<Transcript> saveTranscript(Transcript transcript);
 
   Future<void> deleteTranscriptById(int id);

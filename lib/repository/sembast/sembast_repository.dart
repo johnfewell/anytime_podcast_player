@@ -467,6 +467,14 @@ class SembastRepository extends Repository {
   }
 
   @override
+  Future<List<Transcript>> findTranscriptsByGuid(String guid) async {
+    final finder = Finder(filter: Filter.equals('guid', guid));
+    final snapshots = await _transcriptStore.find(await _db, finder: finder);
+
+    return snapshots.map((s) => Transcript.fromMap(s.key, s.value)).toList(growable: false);
+  }
+
+  @override
   Future<void> deleteTranscriptById(int id) async {
     final finder = Finder(filter: Filter.byKey(id));
 

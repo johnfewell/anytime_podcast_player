@@ -13,7 +13,10 @@ enum TranscriptUploadProvider {
 }
 
 enum TranscriptionProvider {
+  /// On-device Whisper (default). Stored as `localAi` for backwards
+  /// compatibility with installs that predate the Moonshine option.
   localAi,
+  moonshine,
   openAi,
 }
 

@@ -136,8 +136,8 @@ class _SettingsState extends State<Settings> {
   }
 
   Future<void> _cancelGemmaDownload(BackgroundAnalysisLocalModel variant) async {
-    await _downloadSub?.cancel();
     final service = Provider.of<GemmaModelDownloadService>(context, listen: false);
+    await _downloadSub?.cancel();
     try {
       await service.delete(variant);
     } catch (_) {}
@@ -704,6 +704,8 @@ class _SettingsState extends State<Settings> {
     switch (provider) {
       case TranscriptionProvider.localAi:
         return 'On-device Whisper';
+      case TranscriptionProvider.moonshine:
+        return 'On-device Moonshine';
       case TranscriptionProvider.openAi:
         return 'OpenAI Whisper API';
     }
@@ -852,9 +854,7 @@ class _SettingsState extends State<Settings> {
           title: 'Auto-analyze downloaded episodes',
           subtitle: _backgroundAnalysisSubtitle(),
           value: sectionEnabled,
-          onChanged: supported
-              ? (enabled) => _handleBackgroundAnalysisToggle(settingsBloc, settings, enabled)
-              : (_) {},
+          onChanged: supported ? (enabled) => _handleBackgroundAnalysisToggle(settingsBloc, settings, enabled) : (_) {},
         ),
         if (sectionEnabled) ...[
           _ActionSettingsTile(
@@ -879,9 +879,7 @@ class _SettingsState extends State<Settings> {
             _ActionSettingsTile(
               icon: Icons.play_arrow_outlined,
               title: 'Run background analysis now (dev)',
-              subtitle: _runningBackgroundAnalysis
-                  ? 'Running…'
-                  : 'Processes the next queued episode on the UI isolate',
+              subtitle: _runningBackgroundAnalysis ? 'Running…' : 'Processes the next queued episode on the UI isolate',
               onTap: _runBackgroundAnalysisNow,
             ),
         ],
@@ -1168,8 +1166,10 @@ class _SettingsState extends State<Settings> {
   Future<void> _showBackgroundLocalModelDialog(AppSettings settings) async {
     final settingsBloc = Provider.of<SettingsBloc>(context, listen: false);
     final options = <_ValueLabel<BackgroundAnalysisLocalModel>>[
-      _ValueLabel(BackgroundAnalysisLocalModel.gemma4E2B, _backgroundLocalModelLabel(BackgroundAnalysisLocalModel.gemma4E2B)),
-      _ValueLabel(BackgroundAnalysisLocalModel.gemma4E4B, _backgroundLocalModelLabel(BackgroundAnalysisLocalModel.gemma4E4B)),
+      _ValueLabel(
+          BackgroundAnalysisLocalModel.gemma4E2B, _backgroundLocalModelLabel(BackgroundAnalysisLocalModel.gemma4E2B)),
+      _ValueLabel(
+          BackgroundAnalysisLocalModel.gemma4E4B, _backgroundLocalModelLabel(BackgroundAnalysisLocalModel.gemma4E4B)),
     ];
 
     await showPlatformDialog<void>(
@@ -1404,6 +1404,7 @@ class _SettingsState extends State<Settings> {
     final settingsBloc = Provider.of<SettingsBloc>(context, listen: false);
     final options = <_ValueLabel<TranscriptionProvider>>[
       const _ValueLabel(TranscriptionProvider.localAi, 'On-device Whisper'),
+      const _ValueLabel(TranscriptionProvider.moonshine, 'On-device Moonshine'),
       const _ValueLabel(TranscriptionProvider.openAi, 'OpenAI Whisper API'),
     ];
 
@@ -2269,12 +2270,9 @@ class _BackgroundAnalysisRunPageState extends State<_BackgroundAnalysisRunPage> 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final status = _done
-        ? (_failed ? 'Failed: $_error' : 'Pass complete')
-        : 'Running…';
-    final statusColor = _done
-        ? (_failed ? theme.colorScheme.error : theme.colorScheme.primary)
-        : theme.colorScheme.primary;
+    final status = _done ? (_failed ? 'Failed: $_error' : 'Pass complete') : 'Running…';
+    final statusColor =
+        _done ? (_failed ? theme.colorScheme.error : theme.colorScheme.primary) : theme.colorScheme.primary;
 
     return Scaffold(
       appBar: AppBar(

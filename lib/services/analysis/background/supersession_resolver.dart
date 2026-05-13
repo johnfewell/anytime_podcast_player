@@ -30,7 +30,14 @@ class SupersessionResolver {
 
   /// Returns `true` iff [newRecord] should become the active record given the
   /// currently active record (or null if none).
+  ///
+  /// Failure records (`error != null`) are diagnostic-only and never become
+  /// active — otherwise a same-provider failure would wipe out the prior
+  /// successful run's `adSegments` via [commitResult].
   static bool shouldActivate(EpisodeAnalysisRecord? currentActive, EpisodeAnalysisRecord newRecord) {
+    if (newRecord.isFailure) {
+      return false;
+    }
     if (currentActive == null) {
       return true;
     }

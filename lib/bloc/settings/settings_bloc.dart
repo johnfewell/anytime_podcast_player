@@ -60,8 +60,7 @@ class SettingsBloc extends Bloc {
     required this.settingsService,
     required this.notificationService,
     BackgroundAnalysisScheduler? backgroundAnalysisScheduler,
-  })  : backgroundAnalysisScheduler =
-            backgroundAnalysisScheduler ?? const NoopBackgroundAnalysisScheduler() {
+  }) : backgroundAnalysisScheduler = backgroundAnalysisScheduler ?? const NoopBackgroundAnalysisScheduler() {
     _init();
   }
 
@@ -285,9 +284,9 @@ class SettingsBloc extends Bloc {
       settingsService.backgroundAnalysisEnabled = enabled;
       try {
         if (enabled) {
-          await this.backgroundAnalysisScheduler.schedule();
+          await backgroundAnalysisScheduler.schedule();
         } else {
-          await this.backgroundAnalysisScheduler.cancel();
+          await backgroundAnalysisScheduler.cancel();
         }
       } catch (error, stack) {
         log.warning('Failed to update background analysis schedule', error, stack);
@@ -403,8 +402,7 @@ class SettingsBloc extends Bloc {
 
   void Function(BackgroundAnalysisLocalModel) get setBackgroundLocalModel => _backgroundLocalModel.add;
 
-  void Function(bool) get setBackgroundAnalysisDiskCostAccepted =>
-      _backgroundAnalysisDiskCostAccepted.add;
+  void Function(bool) get setBackgroundAnalysisDiskCostAccepted => _backgroundAnalysisDiskCostAccepted.add;
 
   void Function(bool) get setOnDemandAnalysisEnabled => _onDemandAnalysisEnabled.add;
 

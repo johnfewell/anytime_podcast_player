@@ -207,14 +207,19 @@ class EpisodeBloc extends Bloc {
 
     transcript.guid = episode.guid;
 
+    final activeProvider = settingsService.transcriptionProvider;
+
     if (!transcript.isAppGeneratedAiTranscript) {
-      transcript.provenance = settingsService.transcriptionProvider == TranscriptionProvider.openAi
+      transcript.provenance = activeProvider == TranscriptionProvider.openAi
           ? TranscriptProvenance.openAi
           : TranscriptProvenance.localAi;
     }
 
-    transcript.provider ??=
-        settingsService.transcriptionProvider == TranscriptionProvider.openAi ? 'whisper-1' : 'whisper';
+    transcript.provider ??= switch (activeProvider) {
+      TranscriptionProvider.openAi => 'whisper-1',
+      TranscriptionProvider.moonshine => 'moonshine',
+      TranscriptionProvider.localAi => 'whisper',
+    };
 
     return _persistTranscriptReplacement(
       episode,
@@ -355,6 +360,11 @@ class EpisodeBloc extends Bloc {
         episodeId: episode.guid,
         adSegments: adSegments,
       );
+    } else if (status == EpisodeAnalysisJobStatus.failed && error != null && error.isNotEmpty) {
+      await _commitOnDemandAnalysisFailure(
+        episodeId: episode.guid,
+        error: error,
+      );
     }
 
     final currentEpisode = await _loadCurrentEpisode(episode);
@@ -376,15 +386,71 @@ class EpisodeBloc extends Bloc {
       return;
     }
 
+    final providerInfo = _activeAnalysisProviderInfo();
+
     final record = EpisodeAnalysisRecord(
-      provider: AnalysisProvider.geminiAudio,
-      modelId: settingsService.geminiAnalysisModel,
+      provider: providerInfo.providerId,
+      modelId: providerInfo.modelId,
       completedAtMs: DateTime.now().millisecondsSinceEpoch,
       adSegments: List<AdSegment>.unmodifiable(adSegments),
       active: false,
     );
 
     await service.commitResult(episodeId: episodeId, record: record);
+  }
+
+  Future<void> _commitOnDemandAnalysisFailure({
+    required String episodeId,
+    required String error,
+  }) async {
+    final service = backgroundAnalysisService;
+    if (service == null) {
+      return;
+    }
+
+    final providerInfo = _activeAnalysisProviderInfo();
+
+    final record = EpisodeAnalysisRecord(
+      provider: providerInfo.providerId,
+      modelId: providerInfo.modelId,
+      completedAtMs: DateTime.now().millisecondsSinceEpoch,
+      adSegments: const <AdSegment>[],
+      active: false,
+      status: 'failed',
+      error: error,
+    );
+
+    await service.commitResult(episodeId: episodeId, record: record);
+  }
+
+  _AnalysisProviderInfo _activeAnalysisProviderInfo() {
+    switch (settingsService.transcriptUploadProvider) {
+      case TranscriptUploadProvider.gemini:
+        return _AnalysisProviderInfo(
+          providerId: AnalysisProvider.geminiAudio,
+          modelId: settingsService.geminiAnalysisModel,
+        );
+      case TranscriptUploadProvider.openAi:
+        return _AnalysisProviderInfo(
+          providerId: AnalysisProvider.openAi,
+          modelId: settingsService.openAiAnalysisModel,
+        );
+      case TranscriptUploadProvider.grok:
+        return _AnalysisProviderInfo(
+          providerId: AnalysisProvider.grok,
+          modelId: settingsService.grokAnalysisModel,
+        );
+      case TranscriptUploadProvider.analysisBackend:
+        return const _AnalysisProviderInfo(
+          providerId: AnalysisProvider.backend,
+          modelId: '',
+        );
+      case TranscriptUploadProvider.disabled:
+        return const _AnalysisProviderInfo(
+          providerId: AnalysisProvider.legacyUnknown,
+          modelId: '',
+        );
+    }
   }
 
   Future<Episode> _loadCurrentEpisode(Episode episode) async {
@@ -396,7 +462,6 @@ class EpisodeBloc extends Bloc {
     required Transcript transcript,
   }) async {
     final currentEpisode = await _loadCurrentEpisode(episode);
-    final previousTranscriptId = currentEpisode.transcriptId;
     var savedTranscript = await podcastService.saveTranscript(transcript);
 
     currentEpisode.transcript = savedTranscript;
@@ -407,8 +472,20 @@ class EpisodeBloc extends Bloc {
     currentEpisode.analysisUpdatedAt = null;
     currentEpisode.adSegments = const <AdSegment>[];
 
-    if (previousTranscriptId != null && previousTranscriptId > 0 && previousTranscriptId != savedTranscript.id) {
-      await podcastService.repository.deleteTranscriptById(previousTranscriptId);
+    // Sweep any stale transcripts pointing at this episode's guid. Covers both
+    // the previous transcript on this episode AND orphans from earlier runs
+    // that inserted a transcript but failed to persist the episode pointer.
+    final savedGuid = savedTranscript.guid;
+    if (savedGuid != null && savedGuid.isNotEmpty) {
+      final existing = await podcastService.repository.findTranscriptsByGuid(savedGuid);
+      final orphanIds = existing
+          .map((t) => t.id)
+          .whereType<int>()
+          .where((id) => id != savedTranscript.id)
+          .toList(growable: false);
+      if (orphanIds.isNotEmpty) {
+        await podcastService.repository.deleteTranscriptsById(orphanIds);
+      }
     }
 
     return podcastService.saveEpisode(currentEpisode);
@@ -460,4 +537,14 @@ class EpisodeAnalysisFailedException implements Exception {
 
   @override
   String toString() => 'EpisodeAnalysisFailedException($message)';
+}
+
+class _AnalysisProviderInfo {
+  final String providerId;
+  final String modelId;
+
+  const _AnalysisProviderInfo({
+    required this.providerId,
+    required this.modelId,
+  });
 }

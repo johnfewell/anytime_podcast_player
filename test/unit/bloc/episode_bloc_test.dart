@@ -568,6 +568,19 @@ class _FakeRepository implements Repository {
   }
 
   @override
+  Future<void> deleteTranscriptsById(List<int> ids) async {
+    for (final id in ids) {
+      deletedTranscriptIds.add(id);
+      transcriptsById.remove(id);
+    }
+  }
+
+  @override
+  Future<List<Transcript>> findTranscriptsByGuid(String guid) async {
+    return transcriptsById.values.where((t) => t.guid == guid).toList(growable: false);
+  }
+
+  @override
   Future<List<EpisodeAnalysisRecord>> findAnalysisHistory(String episodeId) async {
     return List<EpisodeAnalysisRecord>.from(
       analysisHistoryByEpisodeId[episodeId] ?? const <EpisodeAnalysisRecord>[],

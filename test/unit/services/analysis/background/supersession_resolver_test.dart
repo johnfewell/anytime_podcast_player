@@ -141,6 +141,52 @@ void main() {
       expect(updated[2].active, isTrue);
     });
 
+    test('failure record never becomes active even when no prior active exists', () {
+      final failure = EpisodeAnalysisRecord(
+        provider: AnalysisProvider.grok,
+        modelId: 'grok-4.3',
+        completedAtMs: 5,
+        adSegments: const <AdSegment>[],
+        active: false,
+        status: 'failed',
+        error: 'Grok analysis timed out. Try again.',
+      );
+
+      final updated = SupersessionResolver.resolve(existing: const [], newRecord: failure);
+
+      expect(updated, hasLength(1));
+      expect(updated.single.active, isFalse, reason: 'failure records are diagnostic-only');
+      expect(updated.single.error, 'Grok analysis timed out. Try again.');
+    });
+
+    test('same-provider failure does not displace prior successful active record', () {
+      final prior = _record(
+        provider: AnalysisProvider.grok,
+        active: true,
+        completedAtMs: 10,
+        adSegments: const <AdSegment>[
+          AdSegment(startMs: 0, endMs: 1000),
+        ],
+      );
+      final failure = EpisodeAnalysisRecord(
+        provider: AnalysisProvider.grok,
+        modelId: 'grok-4.3',
+        completedAtMs: 20,
+        adSegments: const <AdSegment>[],
+        active: false,
+        status: 'failed',
+        error: 'HTTP 429: rate limited',
+      );
+
+      final updated = SupersessionResolver.resolve(existing: [prior], newRecord: failure);
+
+      expect(updated, hasLength(2));
+      expect(updated[0].active, isTrue, reason: 'prior successful record stays active');
+      expect(updated[0].adSegments, hasLength(1));
+      expect(updated[1].active, isFalse);
+      expect(updated[1].isFailure, isTrue);
+    });
+
     test('returned list is unmodifiable', () {
       final next = _record(provider: AnalysisProvider.geminiAudio, active: false);
       final updated = SupersessionResolver.resolve(existing: const [], newRecord: next);

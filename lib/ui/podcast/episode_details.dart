@@ -594,7 +594,7 @@ class EpisodeAnalysisPanel extends StatelessWidget {
     if (isGemini) {
       return 'Analyze Audio';
     }
-    return _canAnalyze(episode) ? 'Analyze Ads' : 'Transcribe & Analyze';
+    return _canAnalyze(episode) ? 'Detect Ads' : 'Transcribe & Detect Ads';
   }
 
   String _transcriptActionLabel(Episode episode) {
@@ -604,6 +604,7 @@ class EpisodeAnalysisPanel extends StatelessWidget {
   String _generateTranscriptTitle(TranscriptionProvider provider) {
     switch (provider) {
       case TranscriptionProvider.localAi:
+      case TranscriptionProvider.moonshine:
         return 'Generate On-Device Transcript?';
       case TranscriptionProvider.openAi:
         return 'Generate OpenAI Transcript?';
@@ -614,6 +615,8 @@ class EpisodeAnalysisPanel extends StatelessWidget {
     switch (provider) {
       case TranscriptionProvider.localAi:
         return 'This downloads a Whisper model to your device if needed and transcribes this downloaded episode on this device. Audio stays on this device during transcription.';
+      case TranscriptionProvider.moonshine:
+        return 'This downloads a Moonshine model to your device if needed and transcribes this downloaded episode on this device. Audio stays on this device during transcription.';
       case TranscriptionProvider.openAi:
         return 'This uploads the downloaded audio file for this episode to the OpenAI Whisper API to generate a transcript. Continue only if you want this audio processed by OpenAI.';
     }
@@ -622,15 +625,17 @@ class EpisodeAnalysisPanel extends StatelessWidget {
   String _transcribeAndAnalyzeTitle(TranscriptionProvider provider) {
     switch (provider) {
       case TranscriptionProvider.localAi:
-        return 'Transcribe and Analyze?';
+      case TranscriptionProvider.moonshine:
+        return 'Transcribe and Detect Ads?';
       case TranscriptionProvider.openAi:
-        return 'Transcribe and Analyze with OpenAI?';
+        return 'Transcribe and Detect Ads with OpenAI?';
     }
   }
 
   String _transcribeAndAnalyzeConfirmationText(TranscriptionProvider provider) {
     switch (provider) {
       case TranscriptionProvider.localAi:
+      case TranscriptionProvider.moonshine:
         return 'This generates an AI transcript on this device, then uploads that transcript to the configured external provider for ad analysis. Audio stays on this device during transcription. Continue?';
       case TranscriptionProvider.openAi:
         return 'This uploads the downloaded audio file for this episode to OpenAI to generate a transcript, then uploads that transcript to the configured external provider for ad analysis. Continue only if you want this audio and transcript processed externally.';
@@ -815,7 +820,15 @@ class _AnalysisHistoryDiagnostics extends StatelessWidget {
           const SizedBox(height: 8.0),
           ...history.map((record) {
             final completed = DateTime.fromMillisecondsSinceEpoch(record.completedAtMs).toLocal().toIso8601String();
-            final marker = record.active ? '● active' : '○ superseded';
+            final String marker;
+            if (record.isFailure) {
+              marker = '✕ failed';
+            } else if (record.active) {
+              marker = '● active';
+            } else {
+              marker = '○ superseded';
+            }
+            final errorStyle = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error);
             return Padding(
               padding: const EdgeInsets.only(bottom: 8.0),
               child: Column(
@@ -829,6 +842,8 @@ class _AnalysisHistoryDiagnostics extends StatelessWidget {
                   Text(completed, style: theme.textTheme.bodySmall),
                   if (record.status != null && record.status!.isNotEmpty)
                     Text('status: ${record.status}', style: theme.textTheme.bodySmall),
+                  if (record.error != null && record.error!.isNotEmpty)
+                    Text('reason: ${record.error}', style: errorStyle),
                 ],
               ),
             );

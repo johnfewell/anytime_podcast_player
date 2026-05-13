@@ -150,9 +150,9 @@ void main() {
 
     await tester.pumpWidget(_wrapWithEpisodeBloc(bloc, episode));
 
-    await tester.tap(find.text('Transcribe & Analyze'));
+    await tester.tap(find.text('Transcribe & Detect Ads'));
     await tester.pumpAndSettle();
-    expect(find.text('Transcribe and Analyze?'), findsOneWidget);
+    expect(find.text('Transcribe and Detect Ads?'), findsOneWidget);
 
     await tester.tap(find.text('Continue'));
     await tester.pump();
@@ -226,7 +226,7 @@ void main() {
 
     await tester.pumpWidget(_wrapWithEpisodeBloc(bloc, episode));
 
-    await tester.tap(find.text('Analyze Ads'));
+    await tester.tap(find.text('Detect Ads'));
     await tester.pumpAndSettle();
     expect(find.text('Upload Transcript?'), findsOneWidget);
 
@@ -296,7 +296,7 @@ void main() {
 
     await tester.pumpWidget(_wrapWithEpisodeBloc(bloc, episode));
 
-    await tester.tap(find.text('Analyze Ads'));
+    await tester.tap(find.text('Detect Ads'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Upload'));
     await tester.pump();
@@ -339,7 +339,7 @@ void main() {
 
     final analyzeButton = tester.widget<OutlinedButton>(
       find.ancestor(
-        of: find.text('Transcribe & Analyze'),
+        of: find.text('Transcribe & Detect Ads'),
         matching: find.byType(OutlinedButton),
       ),
     );
@@ -489,7 +489,7 @@ void main() {
     expect(find.text('TRANSCRIPT'), findsOneWidget);
     expect(find.text('UP NEXT'), findsOneWidget);
     expect(find.text('Regenerate AI Transcript'), findsOneWidget);
-    expect(find.text('Analyze Ads'), findsOneWidget);
+    expect(find.text('Detect Ads'), findsOneWidget);
 
     await tester.pump(const Duration(seconds: 2));
   });
@@ -623,6 +623,18 @@ class _FakeRepository implements Repository {
   @override
   Future<void> deleteTranscriptById(int id) async {
     transcriptsById.remove(id);
+  }
+
+  @override
+  Future<void> deleteTranscriptsById(List<int> ids) async {
+    for (final id in ids) {
+      transcriptsById.remove(id);
+    }
+  }
+
+  @override
+  Future<List<Transcript>> findTranscriptsByGuid(String guid) async {
+    return transcriptsById.values.where((t) => t.guid == guid).toList(growable: false);
   }
 
   @override

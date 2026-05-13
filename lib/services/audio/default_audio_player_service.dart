@@ -30,6 +30,7 @@ import 'package:collection/collection.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
+import 'package:mp3_info/mp3_info.dart';
 import 'package:rxdart/rxdart.dart';
 
 /// This is the default implementation of [AudioPlayerService].
@@ -134,6 +135,11 @@ class DefaultAudioPlayerService extends AudioPlayerService {
       _handleAudioServiceTransitions();
       _loadQueue();
     });
+
+    // Refresh the in-memory transcript when the bloc persists a new transcript
+    // for the currently playing episode mid-playback. The service singleton
+    // lives for the app's lifetime, so we leak no subscription.
+    repository.episodeListener.listen(_onRepositoryEpisodeUpdate);
   }
 
   @override
@@ -743,26 +749,53 @@ class DefaultAudioPlayerService extends AudioPlayerService {
     _updateEpisodeState();
 
     // Chapters
-    if (_currentEpisode!.hasChapters && _currentEpisode!.streaming) {
-      _currentEpisode!.chaptersLoading = true;
-      _currentEpisode!.chapters = <Chapter>[];
+    if (_currentEpisode!.streaming) {
+      if (_currentEpisode!.chaptersUrl != null && _currentEpisode!.chaptersUrl!.isNotEmpty) {
+        _currentEpisode!.chaptersLoading = true;
+        _currentEpisode!.chapters = <Chapter>[];
 
-      _updateEpisodeState();
+        _updateEpisodeState();
 
-      await _onUpdatePosition();
+        await _onUpdatePosition();
 
-      log.fine('Loading chapters from ${_currentEpisode!.chaptersUrl}');
+        log.fine('Loading chapters from ${_currentEpisode!.chaptersUrl}');
 
-      if (_currentEpisode!.chaptersUrl != null) {
         _currentEpisode!.chapters = await podcastService.loadChaptersByUrl(
           url: _currentEpisode!.chaptersUrl!,
         );
         _currentEpisode!.chaptersLoading = false;
+      } else {
+        var mp3Info = await MP3Processor.fromUri(_currentEpisode!.contentUrl!);
+
+        if (mp3Info.id3 != null) {
+          if (mp3Info.id3?.chapters != null) {
+            final chapters = <Chapter>[];
+
+            for (var chapter in mp3Info.id3!.chapters) {
+              double startSeconds = chapter.startTime / 1000.0;
+              double endSeconds = 0.0;
+
+              if (chapter.endTime != null) {
+                endSeconds = chapter.endTime! / 1000.0;
+              }
+
+              chapters.add(Chapter(
+                title: chapter.title ?? '',
+                imageUrl: null,
+                startTime: startSeconds,
+                endTime: endSeconds,
+              ));
+            }
+
+            _currentEpisode!.chapters = chapters;
+          }
+        }
       }
 
       _updateEpisodeState();
 
       log.fine('We have ${_currentEpisode!.chapters.length} chapters');
+
       _currentEpisode = await _preserveStoredAiMetadata(_currentEpisode!);
       _currentEpisode = await repository.saveEpisode(_currentEpisode!);
     }
@@ -845,6 +878,42 @@ class DefaultAudioPlayerService extends AudioPlayerService {
     } else {
       log.fine(' - Cannot save position as episode is null');
     }
+  }
+
+  Future<void> _onRepositoryEpisodeUpdate(EpisodeState state) async {
+    final current = _currentEpisode;
+    if (current == null) return;
+
+    final updated = state.episode;
+    if (updated.guid != current.guid) return;
+
+    final newTid = updated.transcriptId ?? 0;
+    final curTid = current.transcriptId ?? 0;
+    if (newTid == curTid) return;
+
+    log.fine(
+      'Repository signalled transcript change for ${current.guid}: $curTid -> $newTid',
+    );
+
+    current.transcriptId = updated.transcriptId;
+
+    if (newTid > 0) {
+      final transcript = await repository.findTranscriptById(newTid);
+      if (transcript == null) {
+        log.warning('Transcript $newTid for ${current.guid} not found after update.');
+        return;
+      }
+      current.transcript = transcript;
+      _currentTranscript = transcript;
+      _updateTranscriptState();
+    } else {
+      current.transcript = null;
+      _currentTranscript = null;
+      _updateTranscriptState(state: TranscriptUnavailableState());
+    }
+
+    _broadcastEpisodePosition(current);
+    _updateEpisodeState();
   }
 
   Future<Episode> _preserveStoredAiMetadata(Episode episode) async {

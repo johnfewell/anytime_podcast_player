@@ -48,6 +48,7 @@ class ConfigurableEpisodeTranscriptionService implements EpisodeTranscriptionSer
   }) {
     switch (settingsService.transcriptionProvider) {
       case TranscriptionProvider.localAi:
+      case TranscriptionProvider.moonshine:
         return _localService.transcribeDownloadedEpisode(
           episode: episode,
           onProgress: onProgress,

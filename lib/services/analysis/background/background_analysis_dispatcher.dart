@@ -70,7 +70,9 @@ Future<void> runBackgroundAnalysisOnce() async {
   final analysisService = DefaultBackgroundAnalysisService(repository);
 
   try {
-    final transcriptionService = await buildLocalTranscriptionService();
+    final transcriptionService = await buildLocalTranscriptionService(
+      settingsService.transcriptionProvider,
+    );
 
     final variant = settingsService.backgroundLocalModel;
     var modelId = AnalysisModelCatalog.modelIdFor(variant);
