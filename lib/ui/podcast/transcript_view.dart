@@ -6,6 +6,7 @@ import 'dart:async';
 
 import 'package:anytime/bloc/podcast/audio_bloc.dart';
 import 'package:anytime/bloc/podcast/queue_bloc.dart';
+import 'package:anytime/entities/ad_segment.dart';
 import 'package:anytime/entities/person.dart';
 import 'package:anytime/entities/transcript.dart';
 import 'package:anytime/l10n/L.dart';
@@ -13,6 +14,7 @@ import 'package:anytime/services/audio/audio_player_service.dart';
 import 'package:anytime/state/queue_event_state.dart';
 import 'package:anytime/state/transcript_state_event.dart';
 import 'package:anytime/ui/podcast/person_avatar.dart';
+import 'package:anytime/ui/themes.dart';
 import 'package:anytime/ui/widgets/platform_progress_indicator.dart';
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
@@ -171,6 +173,33 @@ class _TranscriptViewState extends State<TranscriptView> {
     _positionSubscription.cancel();
   }
 
+  /// Maps the subtitle index where each AI-detected ad segment begins to that
+  /// segment, so an inline marker can be rendered ahead of the line.
+  Map<int, AdSegment> _buildAdMarkers(List<Subtitle> items, List<AdSegment> segments) {
+    final markers = <int, AdSegment>{};
+
+    for (final segment in segments) {
+      var markerIndex = -1;
+
+      for (var i = 0; i < items.length; i++) {
+        final start = items[i].start.inMilliseconds;
+        final end = items[i].end?.inMilliseconds ?? start;
+
+        // The first line whose range reaches the segment start.
+        if (end >= segment.startMs) {
+          markerIndex = i;
+          break;
+        }
+      }
+
+      if (markerIndex >= 0 && !markers.containsKey(markerIndex)) {
+        markers[markerIndex] = segment;
+      }
+    }
+
+    return markers;
+  }
+
   @override
   Widget build(BuildContext context) {
     final audioBloc = Provider.of<AudioBloc>(context, listen: false);
@@ -226,6 +255,10 @@ class _TranscriptViewState extends State<TranscriptView> {
                     );
                   } else {
                     final items = transcriptSnapshot.data!.transcript?.subtitles ?? <Subtitle>[];
+                    final adMarkers = _buildAdMarkers(
+                      items,
+                      queueSnapshot.data?.playing?.adSegments ?? const <AdSegment>[],
+                    );
 
                     return Column(
                       children: [
@@ -337,8 +370,11 @@ class _TranscriptViewState extends State<TranscriptView> {
                                         itemCount: items.length,
                                         itemBuilder: (BuildContext context, int index) {
                                           var i = items[index];
-                                          return Wrap(
+                                          final marker = adMarkers[index];
+                                          return Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
+                                              if (marker != null) AdSegmentMarker(segment: marker),
                                               SubtitleWidget(
                                                 subtitle: i,
                                                 persons: queueSnapshot.data?.playing?.persons ?? <Person>[],
@@ -380,6 +416,11 @@ class SubtitleWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final audioBloc = Provider.of<AudioBloc>(context, listen: false);
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    final headerColor = highlight ? colorScheme.primary : colorScheme.onSurfaceVariant;
+    final bodyColor = highlight ? colorScheme.onSurface : colorScheme.onSurfaceVariant;
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -390,23 +431,46 @@ class SubtitleWidget extends StatelessWidget {
       },
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0.0),
-        color: highlight ? Theme.of(context).cardTheme.color : Colors.transparent,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 16.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              subtitle.speaker.isEmpty
-                  ? _formatDuration(subtitle.start)
-                  : '${_formatDuration(subtitle.start)} - ${subtitle.speaker}',
-              style: Theme.of(context).textTheme.titleSmall,
+            // Blue tick that marks the line currently being spoken.
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 3.0,
+              margin: const EdgeInsets.only(right: 11.0),
+              decoration: BoxDecoration(
+                color: highlight ? colorScheme.primary : Colors.transparent,
+                borderRadius: BorderRadius.circular(2.0),
+              ),
             ),
-            Text(
-              subtitle.data!,
-              style: Theme.of(context).textTheme.titleMedium,
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    subtitle.speaker.isEmpty
+                        ? _formatDuration(subtitle.start)
+                        : '${subtitle.speaker} · ${_formatDuration(subtitle.start)}',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: headerColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 6.0),
+                  Text(
+                    subtitle.data!,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: bodyColor,
+                      fontWeight: highlight ? FontWeight.w600 : FontWeight.w500,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const Padding(padding: EdgeInsets.fromLTRB(0.0, 0.0, 0.0, 16.0))
           ],
         ),
       ),
@@ -419,5 +483,55 @@ class SubtitleWidget extends StatelessWidget {
     final ss = (duration.inSeconds % 60).toString().padLeft(2, '0');
 
     return '$hh:$mm:$ss';
+  }
+}
+
+/// Inline marker rendered where an AI-detected sponsor segment begins in the
+/// transcript — a teal-tinted card flagging that the ad is skipped automatically.
+class AdSegmentMarker extends StatelessWidget {
+  final AdSegment segment;
+
+  const AdSegmentMarker({super.key, required this.segment});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ambient = AmbientColors.of(context);
+    final seconds = ((segment.endMs - segment.startMs) / 1000).round();
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 11.0),
+      decoration: BoxDecoration(
+        color: ambient.aiTealSurface,
+        borderRadius: BorderRadius.circular(12.0),
+        border: Border.all(color: ambient.aiTeal.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.auto_awesome, size: 16.0, color: ambient.aiTeal),
+          const SizedBox(width: 10.0),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Sponsor segment · ${seconds}s',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: ambient.aiTeal,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2.0),
+                Text(
+                  'Detected by AI · skipped automatically',
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

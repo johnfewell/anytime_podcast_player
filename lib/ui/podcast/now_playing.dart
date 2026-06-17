@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 
 import 'package:anytime/bloc/podcast/audio_bloc.dart';
 import 'package:anytime/bloc/podcast/queue_bloc.dart';
@@ -19,6 +20,7 @@ import 'package:anytime/ui/podcast/person_avatar.dart';
 import 'package:anytime/ui/podcast/playback_error_listener.dart';
 import 'package:anytime/ui/podcast/player_position_controls.dart';
 import 'package:anytime/ui/podcast/player_transport_controls.dart';
+import 'package:anytime/ui/themes.dart';
 import 'package:anytime/ui/widgets/delayed_progress_indicator.dart';
 import 'package:anytime/ui/widgets/placeholder_builder.dart';
 import 'package:anytime/ui/widgets/podcast_html.dart';
@@ -151,10 +153,12 @@ class NowPlayingMobileScaffold extends StatelessWidget {
       ),
       child: Scaffold(
         backgroundColor: theme.colorScheme.surface,
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
-          backgroundColor: theme.colorScheme.surface,
+          backgroundColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,
           scrolledUnderElevation: 0.0,
+          centerTitle: true,
           leading: IconButton(
             tooltip: L.of(context)!.minimise_player_window_button_label,
             icon: Icon(
@@ -164,7 +168,14 @@ class NowPlayingMobileScaffold extends StatelessWidget {
             ),
             onPressed: () => Navigator.pop(context),
           ),
-          title: const Text('Now Playing'),
+          title: Text(
+            'NOW PLAYING',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.4,
+            ),
+          ),
           actions: [
             IconButton(
               tooltip: L.of(context)!.share_episode_option_label,
@@ -174,6 +185,7 @@ class NowPlayingMobileScaffold extends StatelessWidget {
               },
             ),
             PopupMenuButton<String>(
+              icon: const Icon(Icons.more_horiz_rounded),
               onSelected: (value) async {
                 if (value == 'share') {
                   await shareEpisode(episode: episode);
@@ -195,56 +207,121 @@ class NowPlayingMobileScaffold extends StatelessWidget {
             ),
           ],
         ),
-        body: AdSkipListener(
-          child: PlaybackErrorListener(
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(
-                      20.0,
-                      8.0,
-                      20.0,
-                      NowPlayingOptionsSelector.baseSize + 28.0,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Center(
-                          child: NowPlayingArtworkCard(
-                            imageUrl: episode.positionalImageUrl ?? episode.imageUrl,
+        body: AmbientBackdrop(
+          child: AdSkipListener(
+            child: PlaybackErrorListener(
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(
+                        20.0,
+                        MediaQuery.paddingOf(context).top + kToolbarHeight + 8.0,
+                        20.0,
+                        NowPlayingOptionsSelector.baseSize + 28.0,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Center(
+                            child: NowPlayingArtworkCard(
+                              imageUrl: episode.positionalImageUrl ?? episode.imageUrl,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 22.0),
-                        _NowPlayingTitleBlock(episode: episode),
-                        const SizedBox(height: 18.0),
-                        transportBuilder != null
-                            ? transportBuilder!(context)
-                            : const SizedBox(
-                                height: 148.0,
-                                child: NowPlayingTransport(),
-                              ),
-                        const SizedBox(height: 18.0),
-                        _NowPlayingDetailsCard(episode: episode),
-                        const SizedBox(height: 14.0),
-                        const _NowPlayingQueueBar(),
-                        const SizedBox(height: 12.0),
-                        Text(
-                          'Pull up the bottom sheet for transcript, ad-skip controls, and detected ad blocks.',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                          const SizedBox(height: 26.0),
+                          _NowPlayingMeta(episode: episode),
+                          const SizedBox(height: 24.0),
+                          FrostedControlCard(
+                            child: transportBuilder != null
+                                ? transportBuilder!(context)
+                                : const SizedBox(
+                                    height: 148.0,
+                                    child: NowPlayingTransport(),
+                                  ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const Positioned.fill(
-                  child: NowPlayingOptionsSelector(),
-                ),
-              ],
+                  const Positioned.fill(
+                    child: NowPlayingOptionsSelector(),
+                  ),
+                ],
+              ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The Ambient page backdrop: artwork tints the top of the canvas, fading down
+/// to the warm-paper surface that the rest of the app sits on.
+class AmbientBackdrop extends StatelessWidget {
+  final Widget child;
+
+  const AmbientBackdrop({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final tint = Color.alphaBlend(colorScheme.primary.withValues(alpha: 0.10), colorScheme.surface);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          stops: const [0.0, 0.32, 0.62],
+          colors: [
+            tint,
+            Color.alphaBlend(colorScheme.primary.withValues(alpha: 0.04), colorScheme.surface),
+            colorScheme.surface,
+          ],
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// A frosted-glass card that floats the playback controls over the backdrop.
+class FrostedControlCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  const FrostedControlCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.fromLTRB(8.0, 16.0, 8.0, 12.0),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final ambient = AmbientColors.of(context);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24.0),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20.0, sigmaY: 20.0),
+        child: Container(
+          width: double.infinity,
+          padding: padding,
+          decoration: BoxDecoration(
+            color: ambient.frostedSurface,
+            borderRadius: BorderRadius.circular(24.0),
+            border: Border.all(color: ambient.frostedBorder),
+            boxShadow: [
+              BoxShadow(
+                color: colorScheme.shadow.withValues(alpha: 0.08),
+                blurRadius: 24.0,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: child,
         ),
       ),
     );
@@ -264,113 +341,98 @@ class NowPlayingArtworkCard extends StatelessWidget {
     final placeholderBuilder = PlaceholderBuilder.of(context);
     final theme = Theme.of(context);
     final width = MediaQuery.sizeOf(context).width;
-    final size = (width - 40.0).clamp(240.0, 360.0);
+    final size = (width - 96.0).clamp(220.0, 320.0);
 
-    return SizedBox(
+    return Container(
       width: size,
       height: size,
-      child: Stack(
-        children: [
-          Positioned(
-            top: 12.0,
-            left: 12.0,
-            right: 0.0,
-            bottom: 0.0,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(34.0),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 4.0,
-            left: 0.0,
-            right: 12.0,
-            bottom: 12.0,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withValues(alpha: 0.04),
-                borderRadius: BorderRadius.circular(34.0),
-              ),
-            ),
-          ),
-          Positioned.fill(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(30.0),
-              child: imageUrl == null || imageUrl!.isEmpty
-                  ? DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerLow,
-                      ),
-                      child: Icon(
-                        Icons.podcasts_rounded,
-                        size: 72.0,
-                        color: theme.colorScheme.primary,
-                      ),
-                    )
-                  : PodcastImage(
-                      key: Key('nowplaying$imageUrl'),
-                      url: imageUrl!,
-                      width: size,
-                      height: size,
-                      fit: BoxFit.cover,
-                      borderRadius: 30.0,
-                      placeholder: placeholderBuilder != null
-                          ? placeholderBuilder.builder()(context)
-                          : DelayedCircularProgressIndicator(),
-                      errorPlaceholder: placeholderBuilder != null
-                          ? placeholderBuilder.errorBuilder()(context)
-                          : const Image(image: AssetImage('assets/images/anytime-placeholder-logo.png')),
-                    ),
-            ),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24.0),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.primary.withValues(alpha: 0.22),
+            blurRadius: 48.0,
+            offset: const Offset(0, 24),
           ),
         ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24.0),
+        child: imageUrl == null || imageUrl!.isEmpty
+            ? DecoratedBox(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerLow,
+                ),
+                child: Icon(
+                  Icons.podcasts_rounded,
+                  size: 72.0,
+                  color: theme.colorScheme.primary,
+                ),
+              )
+            : PodcastImage(
+                key: Key('nowplaying$imageUrl'),
+                url: imageUrl!,
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
+                borderRadius: 24.0,
+                placeholder: placeholderBuilder != null
+                    ? placeholderBuilder.builder()(context)
+                    : DelayedCircularProgressIndicator(),
+                errorPlaceholder: placeholderBuilder != null
+                    ? placeholderBuilder.errorBuilder()(context)
+                    : const Image(image: AssetImage('assets/images/anytime-placeholder-logo.png')),
+              ),
       ),
     );
   }
 }
 
-class _NowPlayingTitleBlock extends StatelessWidget {
+/// Centred episode metadata: podcast eyebrow, title, and author / episode line.
+class _NowPlayingMeta extends StatelessWidget {
   final Episode episode;
 
-  const _NowPlayingTitleBlock({
-    required this.episode,
-  });
+  const _NowPlayingMeta({required this.episode});
 
   @override
   Widget build(BuildContext context) {
-    final queueBloc = Provider.of<QueueBloc>(context, listen: false);
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final podcast = episode.podcast?.trim() ?? '';
     final subtitle = _episodeSubtitle();
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Text(
-                episode.title ?? '',
-                style: theme.textTheme.headlineMedium?.copyWith(height: 1.06),
-              ),
+        if (podcast.isNotEmpty)
+          Text(
+            podcast.toUpperCase(),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: colorScheme.primary,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.6,
             ),
-            IconButton(
-              onPressed: () {
-                queueBloc.queueEvent(QueueAddEvent(episode: episode));
-              },
-              icon: const Icon(Icons.add_circle_outline_rounded),
-              color: theme.colorScheme.primary,
-            ),
-          ],
+          ),
+        const SizedBox(height: 8.0),
+        Text(
+          episode.title ?? '',
+          textAlign: TextAlign.center,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.headlineSmall?.copyWith(height: 1.2),
         ),
         if (subtitle.isNotEmpty) ...[
-          const SizedBox(height: 6.0),
+          const SizedBox(height: 7.0),
           Text(
             subtitle,
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -381,9 +443,9 @@ class _NowPlayingTitleBlock extends StatelessWidget {
   String _episodeSubtitle() {
     final parts = <String>[];
 
-    final podcast = episode.podcast?.trim();
-    if (podcast != null && podcast.isNotEmpty) {
-      parts.add(podcast);
+    final author = episode.author?.trim();
+    if (author != null && author.isNotEmpty) {
+      parts.add(author);
     }
 
     if (episode.episode > 0) {
@@ -392,146 +454,7 @@ class _NowPlayingTitleBlock extends StatelessWidget {
       parts.add('Season ${episode.season}');
     }
 
-    return parts.join(' • ');
-  }
-}
-
-class _NowPlayingDetailsCard extends StatelessWidget {
-  final Episode episode;
-
-  const _NowPlayingDetailsCard({
-    required this.episode,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final queueBloc = Provider.of<QueueBloc>(context, listen: false);
-    final theme = Theme.of(context);
-    final title = episode.podcast?.trim().isNotEmpty == true ? episode.podcast!.trim() : 'This episode';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18.0),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(24.0),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42.0,
-            height: 42.0,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.secondaryContainer,
-              borderRadius: BorderRadius.circular(14.0),
-            ),
-            child: Icon(
-              Icons.speaker_group_rounded,
-              color: theme.colorScheme.primary,
-            ),
-          ),
-          const SizedBox(width: 14.0),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'LISTENING TO',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-                const SizedBox(height: 2.0),
-                Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12.0),
-          FilledButton.tonal(
-            onPressed: () {
-              queueBloc.queueEvent(QueueAddEvent(episode: episode));
-            },
-            child: const Text('Queue'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NowPlayingQueueBar extends StatelessWidget {
-  const _NowPlayingQueueBar();
-
-  @override
-  Widget build(BuildContext context) {
-    final queueBloc = Provider.of<QueueBloc>(context, listen: false);
-    final theme = Theme.of(context);
-
-    return StreamBuilder<QueueState>(
-      stream: queueBloc.queue,
-      initialData: QueueEmptyState(),
-      builder: (context, snapshot) {
-        final queue = snapshot.data?.queue ?? const <Episode>[];
-        final next = queue.isNotEmpty ? queue.first : null;
-        final label = next?.title?.trim().isNotEmpty == true ? next!.title! : 'Queue is empty';
-
-        return Container(
-          padding: const EdgeInsets.fromLTRB(18.0, 14.0, 18.0, 14.0),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(24.0),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.format_list_numbered_rounded,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(width: 12.0),
-              Expanded(
-                child: Text(
-                  next == null ? label : 'Up Next: $label',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12.0),
-              SizedBox(
-                width: 18.0,
-                height: 14.0,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: List<Widget>.generate(4, (index) {
-                    final heights = [14.0, 9.0, 11.0, 7.0];
-                    return Padding(
-                      padding: EdgeInsets.only(right: index == 3 ? 0.0 : 2.0),
-                      child: Container(
-                        width: 3.0,
-                        height: heights[index],
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.primary.withValues(alpha: 0.72),
-                          borderRadius: BorderRadius.circular(999.0),
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    return parts.join(' · ');
   }
 }
 

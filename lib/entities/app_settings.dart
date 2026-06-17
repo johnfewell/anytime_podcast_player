@@ -109,6 +109,22 @@ class AppSettings {
   /// Controls how ad skip behaves during playback.
   final AdSkipMode adSkipMode;
 
+  /// Seconds of countdown shown before an AI-detected ad is auto-skipped while
+  /// in [AdSkipMode.prompt]. 0 disables the auto-skip (wait for the user).
+  final int adSkipCountdownSeconds;
+
+  /// Whether a brief confirmation toast is shown after each skip.
+  final bool adSkipNotify;
+
+  /// Whether host-read / in-content sponsorships are included in detection.
+  final bool adSkipIncludeHostRead;
+
+  /// Running total of ad seconds skipped (drives the AI ad-skip stat).
+  final int adSkipSavedSeconds;
+
+  /// Running total of ads skipped.
+  final int adSkipCount;
+
   /// Preferred OpenAI model for ad analysis.
   final String openAiAnalysisModel;
 
@@ -162,6 +178,11 @@ class AppSettings {
     required this.transcriptUploadProvider,
     required this.transcriptionProvider,
     required this.adSkipMode,
+    required this.adSkipCountdownSeconds,
+    required this.adSkipNotify,
+    required this.adSkipIncludeHostRead,
+    required this.adSkipSavedSeconds,
+    required this.adSkipCount,
     required this.openAiAnalysisModel,
     required this.grokAnalysisModel,
     required this.geminiAnalysisModel,
@@ -197,6 +218,11 @@ class AppSettings {
         transcriptUploadProvider = TranscriptUploadProvider.disabled,
         transcriptionProvider = TranscriptionProvider.localAi,
         adSkipMode = AdSkipMode.prompt,
+        adSkipCountdownSeconds = 3,
+        adSkipNotify = true,
+        adSkipIncludeHostRead = false,
+        adSkipSavedSeconds = 0,
+        adSkipCount = 0,
         openAiAnalysisModel = 'gpt-4.1-mini',
         grokAnalysisModel = 'grok-3',
         geminiAnalysisModel = 'gemini-3.1-flash-lite-preview',
@@ -232,6 +258,11 @@ class AppSettings {
     TranscriptUploadProvider? transcriptUploadProvider,
     TranscriptionProvider? transcriptionProvider,
     AdSkipMode? adSkipMode,
+    int? adSkipCountdownSeconds,
+    bool? adSkipNotify,
+    bool? adSkipIncludeHostRead,
+    int? adSkipSavedSeconds,
+    int? adSkipCount,
     String? openAiAnalysisModel,
     String? grokAnalysisModel,
     String? geminiAnalysisModel,
@@ -266,6 +297,11 @@ class AppSettings {
         transcriptUploadProvider: transcriptUploadProvider ?? this.transcriptUploadProvider,
         transcriptionProvider: transcriptionProvider ?? this.transcriptionProvider,
         adSkipMode: adSkipMode ?? this.adSkipMode,
+        adSkipCountdownSeconds: adSkipCountdownSeconds ?? this.adSkipCountdownSeconds,
+        adSkipNotify: adSkipNotify ?? this.adSkipNotify,
+        adSkipIncludeHostRead: adSkipIncludeHostRead ?? this.adSkipIncludeHostRead,
+        adSkipSavedSeconds: adSkipSavedSeconds ?? this.adSkipSavedSeconds,
+        adSkipCount: adSkipCount ?? this.adSkipCount,
         openAiAnalysisModel: openAiAnalysisModel ?? this.openAiAnalysisModel,
         grokAnalysisModel: grokAnalysisModel ?? this.grokAnalysisModel,
         geminiAnalysisModel: geminiAnalysisModel ?? this.geminiAnalysisModel,

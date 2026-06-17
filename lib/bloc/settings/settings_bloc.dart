@@ -44,6 +44,9 @@ class SettingsBloc extends Bloc {
       BehaviorSubject<TranscriptUploadProvider>();
   final BehaviorSubject<TranscriptionProvider> _transcriptionProvider = BehaviorSubject<TranscriptionProvider>();
   final BehaviorSubject<AdSkipMode> _adSkipMode = BehaviorSubject<AdSkipMode>();
+  final BehaviorSubject<int> _adSkipCountdownSeconds = BehaviorSubject<int>();
+  final BehaviorSubject<bool> _adSkipNotify = BehaviorSubject<bool>();
+  final BehaviorSubject<bool> _adSkipIncludeHostRead = BehaviorSubject<bool>();
   final BehaviorSubject<String> _openAiAnalysisModel = BehaviorSubject<String>();
   final BehaviorSubject<String> _grokAnalysisModel = BehaviorSubject<String>();
   final BehaviorSubject<String> _geminiAnalysisModel = BehaviorSubject<String>();
@@ -98,6 +101,11 @@ class SettingsBloc extends Bloc {
       transcriptUploadProvider: settingsService.transcriptUploadProvider,
       transcriptionProvider: settingsService.transcriptionProvider,
       adSkipMode: settingsService.adSkipMode,
+      adSkipCountdownSeconds: settingsService.adSkipCountdownSeconds,
+      adSkipNotify: settingsService.adSkipNotify,
+      adSkipIncludeHostRead: settingsService.adSkipIncludeHostRead,
+      adSkipSavedSeconds: settingsService.adSkipSavedSeconds,
+      adSkipCount: settingsService.adSkipCount,
       openAiAnalysisModel: settingsService.openAiAnalysisModel,
       grokAnalysisModel: settingsService.grokAnalysisModel,
       geminiAnalysisModel: settingsService.geminiAnalysisModel,
@@ -260,6 +268,24 @@ class SettingsBloc extends Bloc {
       settingsService.adSkipMode = mode;
     });
 
+    _adSkipCountdownSeconds.listen((seconds) {
+      _currentSettings = _currentSettings.copyWith(adSkipCountdownSeconds: seconds);
+      _settings.add(_currentSettings);
+      settingsService.adSkipCountdownSeconds = seconds;
+    });
+
+    _adSkipNotify.listen((notify) {
+      _currentSettings = _currentSettings.copyWith(adSkipNotify: notify);
+      _settings.add(_currentSettings);
+      settingsService.adSkipNotify = notify;
+    });
+
+    _adSkipIncludeHostRead.listen((include) {
+      _currentSettings = _currentSettings.copyWith(adSkipIncludeHostRead: include);
+      _settings.add(_currentSettings);
+      settingsService.adSkipIncludeHostRead = include;
+    });
+
     _openAiAnalysisModel.listen((model) {
       _currentSettings = _currentSettings.copyWith(openAiAnalysisModel: model);
       _settings.add(_currentSettings);
@@ -392,6 +418,12 @@ class SettingsBloc extends Bloc {
 
   void Function(AdSkipMode) get setAdSkipMode => _adSkipMode.add;
 
+  void Function(int) get setAdSkipCountdownSeconds => _adSkipCountdownSeconds.add;
+
+  void Function(bool) get setAdSkipNotify => _adSkipNotify.add;
+
+  void Function(bool) get setAdSkipIncludeHostRead => _adSkipIncludeHostRead.add;
+
   void Function(String) get setOpenAiAnalysisModel => _openAiAnalysisModel.add;
 
   void Function(String) get setGrokAnalysisModel => _grokAnalysisModel.add;
@@ -435,6 +467,9 @@ class SettingsBloc extends Bloc {
     _transcriptUploadProvider.close();
     _transcriptionProvider.close();
     _adSkipMode.close();
+    _adSkipCountdownSeconds.close();
+    _adSkipNotify.close();
+    _adSkipIncludeHostRead.close();
     _openAiAnalysisModel.close();
     _grokAnalysisModel.close();
     _geminiAnalysisModel.close();

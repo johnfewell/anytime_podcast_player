@@ -21,6 +21,8 @@ import 'package:anytime/services/secrets/secure_secrets_service.dart';
 import 'package:anytime/state/opml_state.dart';
 import 'package:anytime/ui/library/opml_export.dart';
 import 'package:anytime/ui/library/opml_import.dart';
+import 'package:anytime/ui/settings/ai_ad_skip_settings.dart';
+import 'package:anytime/ui/themes.dart';
 import 'package:anytime/ui/widgets/action_text.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -367,17 +369,8 @@ class _SettingsState extends State<Settings> {
                   ],
                 ),
                 const SizedBox(height: 28.0),
-                const _SectionLabel(label: 'Ad playback'),
-                _SettingsCard(
-                  children: [
-                    _ActionSettingsTile(
-                      icon: Icons.skip_next_outlined,
-                      title: 'Ad skip mode',
-                      subtitle: _adSkipModeLabel(settings.adSkipMode),
-                      onTap: () => _showAdSkipModeDialog(settings),
-                    ),
-                  ],
-                ),
+                const _SectionLabel(label: 'AI ad-skip'),
+                _AiAdSkipFeaturedRow(settings: settings),
                 const SizedBox(height: 28.0),
                 const _SectionLabel(label: 'Visual Theme'),
                 _ThemeChoiceRow(
@@ -758,17 +751,6 @@ class _SettingsState extends State<Settings> {
     }
 
     return 'Stored securely ••••${trimmed.substring(trimmed.length - 4)}';
-  }
-
-  String _adSkipModeLabel(AdSkipMode mode) {
-    switch (mode) {
-      case AdSkipMode.disabled:
-        return 'Disabled';
-      case AdSkipMode.prompt:
-        return 'Prompt before skipping';
-      case AdSkipMode.auto:
-        return 'Skip automatically';
-    }
   }
 
   void _handleVersionTap(BuildContext context, AppSettings settings, SettingsBloc settingsBloc) {
@@ -1544,59 +1526,6 @@ class _SettingsState extends State<Settings> {
     );
   }
 
-  Future<void> _showAdSkipModeDialog(AppSettings settings) async {
-    final settingsBloc = Provider.of<SettingsBloc>(context, listen: false);
-    final options = <_ValueLabel<AdSkipMode>>[
-      const _ValueLabel(AdSkipMode.prompt, 'Prompt before skipping'),
-      const _ValueLabel(AdSkipMode.auto, 'Skip automatically'),
-      const _ValueLabel(AdSkipMode.disabled, 'Disabled'),
-    ];
-
-    await showPlatformDialog<void>(
-      context: context,
-      useRootNavigator: false,
-      builder: (dialogContext) {
-        var selected = settings.adSkipMode;
-
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text(
-                'Ad skip mode',
-                style: Theme.of(context).textTheme.titleMedium,
-                textAlign: TextAlign.center,
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (final option in options)
-                    _SelectionDialogTile(
-                      title: option.label,
-                      selected: selected == option.value,
-                      onTap: () {
-                        setDialogState(() {
-                          selected = option.value;
-                        });
-                        settingsBloc.setAdSkipMode(option.value);
-                        Navigator.pop(dialogContext);
-                      },
-                    ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(dialogContext),
-                      child: ActionText(L.of(context)!.close_button_label),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
   String _analysisModelErrorMessage(Object? error) {
     if (error is EpisodeAnalysisHttpException) {
       return 'Model list request failed with status ${error.statusCode}.';
@@ -1677,6 +1606,109 @@ class _SectionLabel extends StatelessWidget {
             ),
       ),
     );
+  }
+}
+
+/// The deep-indigo "night" featured row for the headline AI ad-skip feature.
+///
+/// Spends the night accent once, here, to tie it to its own settings screen.
+class _AiAdSkipFeaturedRow extends StatelessWidget {
+  final AppSettings settings;
+
+  const _AiAdSkipFeaturedRow({required this.settings});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ambient = AmbientColors.of(context);
+    final onNight = ambient.onNight;
+    final enabled = settings.adSkipMode != AdSkipMode.disabled;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14.0),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const AiAdSkipSettings()),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(14.0),
+          decoration: BoxDecoration(
+            color: ambient.night,
+            borderRadius: BorderRadius.circular(14.0),
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                top: -24.0,
+                right: -20.0,
+                child: Container(
+                  width: 90.0,
+                  height: 90.0,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        ambient.aiTeal.withValues(alpha: 0.45),
+                        ambient.aiTeal.withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  Container(
+                    width: 38.0,
+                    height: 38.0,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                    child: Icon(Icons.auto_awesome, size: 19.0, color: ambient.aiTeal),
+                  ),
+                  const SizedBox(width: 13.0),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'AI ad-skip',
+                          style: theme.textTheme.titleSmall?.copyWith(color: onNight),
+                        ),
+                        const SizedBox(height: 2.0),
+                        Text(
+                          _statusLine(enabled, settings.adSkipSavedSeconds),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: onNight.withValues(alpha: 0.66),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: onNight.withValues(alpha: 0.7)),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _statusLine(bool enabled, int savedSeconds) {
+    if (!enabled) {
+      return 'Off';
+    }
+    if (savedSeconds <= 0) {
+      return 'On';
+    }
+    final hours = savedSeconds ~/ 3600;
+    final minutes = (savedSeconds % 3600) ~/ 60;
+    final saved = hours > 0 ? '${hours}h ${minutes}m' : '${minutes}m';
+    return 'On · $saved saved this month';
   }
 }
 

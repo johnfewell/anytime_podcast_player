@@ -375,6 +375,13 @@ class DefaultAudioPlayerService extends AudioPlayerService {
     _promptedAdSegmentKey = null;
     _activeAdSegment = null;
 
+    // Track the running "time saved" stat surfaced on the AI ad-skip screen.
+    final savedSeconds = ((activeSegment.endMs - activeSegment.startMs) / 1000).round();
+    if (savedSeconds > 0) {
+      settingsService.adSkipSavedSeconds = settingsService.adSkipSavedSeconds + savedSeconds;
+      settingsService.adSkipCount = settingsService.adSkipCount + 1;
+    }
+
     await seek(
       position: Duration(milliseconds: _resolveAdSkipTargetMs(activeSegment)),
     );
