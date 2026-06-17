@@ -104,32 +104,13 @@ class _AdSkipHeroStat extends StatelessWidget {
     final ambient = AmbientColors.of(context);
     final onNight = ambient.onNight;
 
-    return Container(
+    return AmbientNightBand(
       padding: const EdgeInsets.all(22.0),
-      decoration: BoxDecoration(
-        color: ambient.night,
-        borderRadius: BorderRadius.circular(20.0),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -28.0,
-            right: -24.0,
-            child: Container(
-              width: 120.0,
-              height: 120.0,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    ambient.aiTeal.withValues(alpha: 0.5),
-                    ambient.aiTeal.withValues(alpha: 0.0),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Column(
+      borderRadius: 20.0,
+      glowSize: 120.0,
+      glowTop: -28.0,
+      glowRight: -24.0,
+      child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
@@ -172,8 +153,6 @@ class _AdSkipHeroStat extends StatelessWidget {
               ),
             ],
           ),
-        ],
-      ),
     );
   }
 

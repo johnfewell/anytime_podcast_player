@@ -559,6 +559,63 @@ class AmbientColors extends ThemeExtension<AmbientColors> {
   }
 }
 
+/// The deep-indigo "night" surface with a soft radial teal glow, used by the
+/// AI ad-skip feature (the Settings featured row and the AI ad-skip hero stat).
+/// Extracted so the band + glow live in one place.
+class AmbientNightBand extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final double borderRadius;
+  final double glowSize;
+  final double glowTop;
+  final double glowRight;
+
+  const AmbientNightBand({
+    super.key,
+    required this.child,
+    required this.padding,
+    required this.borderRadius,
+    required this.glowSize,
+    this.glowTop = -24.0,
+    this.glowRight = -20.0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ambient = AmbientColors.of(context);
+
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: ambient.night,
+        borderRadius: BorderRadius.circular(borderRadius),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: glowTop,
+            right: glowRight,
+            child: Container(
+              width: glowSize,
+              height: glowSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    ambient.aiTeal.withValues(alpha: 0.5),
+                    ambient.aiTeal.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
 class Themes {
   final ThemeData themeData;
 

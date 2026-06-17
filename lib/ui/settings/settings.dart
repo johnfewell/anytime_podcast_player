@@ -1633,64 +1633,41 @@ class _AiAdSkipFeaturedRow extends StatelessWidget {
             MaterialPageRoute<void>(builder: (_) => const AiAdSkipSettings()),
           );
         },
-        child: Container(
+        child: AmbientNightBand(
           padding: const EdgeInsets.all(14.0),
-          decoration: BoxDecoration(
-            color: ambient.night,
-            borderRadius: BorderRadius.circular(14.0),
-          ),
-          child: Stack(
+          borderRadius: 14.0,
+          glowSize: 90.0,
+          child: Row(
             children: [
-              Positioned(
-                top: -24.0,
-                right: -20.0,
-                child: Container(
-                  width: 90.0,
-                  height: 90.0,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        ambient.aiTeal.withValues(alpha: 0.45),
-                        ambient.aiTeal.withValues(alpha: 0.0),
-                      ],
+              Container(
+                width: 38.0,
+                height: 38.0,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(10.0),
+                ),
+                child: Icon(Icons.auto_awesome, size: 19.0, color: ambient.aiTeal),
+              ),
+              const SizedBox(width: 13.0),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AI ad-skip',
+                      style: theme.textTheme.titleSmall?.copyWith(color: onNight),
                     ),
-                  ),
+                    const SizedBox(height: 2.0),
+                    Text(
+                      _statusLine(enabled, settings.adSkipSavedSeconds),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: onNight.withValues(alpha: 0.66),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              Row(
-                children: [
-                  Container(
-                    width: 38.0,
-                    height: 38.0,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(10.0),
-                    ),
-                    child: Icon(Icons.auto_awesome, size: 19.0, color: ambient.aiTeal),
-                  ),
-                  const SizedBox(width: 13.0),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'AI ad-skip',
-                          style: theme.textTheme.titleSmall?.copyWith(color: onNight),
-                        ),
-                        const SizedBox(height: 2.0),
-                        Text(
-                          _statusLine(enabled, settings.adSkipSavedSeconds),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: onNight.withValues(alpha: 0.66),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.chevron_right_rounded, color: onNight.withValues(alpha: 0.7)),
-                ],
-              ),
+              Icon(Icons.chevron_right_rounded, color: onNight.withValues(alpha: 0.7)),
             ],
           ),
         ),
