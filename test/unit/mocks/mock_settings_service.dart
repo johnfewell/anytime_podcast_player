@@ -83,6 +83,21 @@ class MockSettingsService extends SettingsService {
   AdSkipMode adSkipMode = AdSkipMode.prompt;
 
   @override
+  int adSkipCountdownSeconds = 3;
+
+  @override
+  bool adSkipNotify = true;
+
+  @override
+  bool adSkipIncludeHostRead = false;
+
+  @override
+  int adSkipSavedSeconds = 0;
+
+  @override
+  int adSkipCount = 0;
+
+  @override
   String openAiAnalysisModel = 'gpt-4.1-mini';
 
   @override

@@ -382,13 +382,19 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(find.text('Ad detected'), findsOneWidget);
-    expect(find.text('Skip'), findsOneWidget);
+    expect(find.text('Ad coming up'), findsOneWidget);
+    expect(find.text('AI DETECTED'), findsOneWidget);
+    expect(find.text('Skip ad'), findsOneWidget);
+    expect(find.text('Keep playing'), findsOneWidget);
 
-    await tester.tap(find.text('Skip'));
+    await tester.tap(find.text('Skip ad'));
     await tester.pump();
 
     expect(audioService.skipActiveAdCallCount, 1);
+
+    // The card dismisses itself once skipped; drain the confirmation toast timer.
+    await tester.pump(const Duration(milliseconds: 2500));
+    expect(find.text('Ad coming up'), findsNothing);
 
     audioService.emitAdSkipEvent(AdSkipClearedState(
       episode: episode,
@@ -396,7 +402,7 @@ void main() {
     ));
     await tester.pumpAndSettle();
 
-    expect(find.text('Ad detected'), findsNothing);
+    expect(find.text('Ad coming up'), findsNothing);
   });
 
   testWidgets('NowPlayingOptionsSelectorWide exposes AI, transcript, and queue tabs', (tester) async {

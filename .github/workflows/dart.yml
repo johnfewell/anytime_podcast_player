@@ -8,6 +8,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # The native deps (sherpa_onnx, whisper_ggml, ffmpeg_kit, flutter_gemma)
+      # plus a freshly-installed NDK 29 + CMake compile right at the edge of the
+      # ~14 GB hosted-runner disk, and building both the APK and the appbundle
+      # intermittently fails with "No space left on device". Reclaim space up
+      # front. The preinstalled NDKs are safe to drop — the build installs the
+      # NDK version it needs via sdkmanager.
+      - name: Free up disk space
+        run: |
+          echo "Before:"; df -h /
+          sudo rm -rf /usr/local/lib/android/sdk/ndk/* || true
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL /usr/share/swift /opt/microsoft || true
+          sudo docker image prune --all --force || true
+          sudo apt-get clean || true
+          echo "After:"; df -h /
       - uses: actions/checkout@v3
       - uses: actions/setup-java@v2
         with:

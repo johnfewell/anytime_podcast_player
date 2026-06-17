@@ -8,6 +8,7 @@ import 'package:anytime/bloc/podcast/episode_bloc.dart';
 import 'package:anytime/bloc/podcast/queue_bloc.dart';
 import 'package:anytime/core/utils.dart';
 import 'package:anytime/entities/ad_segment.dart';
+import 'package:anytime/ui/themes.dart';
 import 'package:anytime/entities/app_settings.dart';
 import 'package:anytime/entities/episode.dart';
 import 'package:anytime/entities/episode_analysis_record.dart';
@@ -89,6 +90,14 @@ class _EpisodeDetailsState extends State<EpisodeDetails> {
                 EpisodeToolBar(
                   episode: episode,
                 ),
+                if (episode.adSegments.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16.0, 4.0, 16.0, 4.0),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: _AdsAheadChip(adSegments: episode.adSegments),
+                    ),
+                  ),
                 const Divider(),
                 EpisodeAnalysisPanel(
                   episode: episode,
@@ -997,5 +1006,67 @@ class _TranscriptionProgressBodyState extends State<_TranscriptionProgressBody> 
     }
 
     return '${minutes}m ${seconds.toString().padLeft(2, '0')}s';
+  }
+}
+
+/// A teal AI chip on the episode detail giving a heads-up that the AI ad-skip
+/// will skip the detected ads ahead. See the Player Ambient design.
+class _AdsAheadChip extends StatelessWidget {
+  final List<AdSegment> adSegments;
+
+  const _AdsAheadChip({required this.adSegments});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ambient = AmbientColors.of(context);
+    final count = adSegments.length;
+    final totalSeconds =
+        adSegments.fold<int>(0, (sum, s) => sum + ((s.endMs - s.startMs) / 1000).round());
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          height: 26.0,
+          padding: const EdgeInsets.symmetric(horizontal: 11.0),
+          decoration: BoxDecoration(
+            color: ambient.aiTealSurface,
+            borderRadius: BorderRadius.circular(999.0),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.auto_awesome, size: 12.0, color: ambient.aiTeal),
+              const SizedBox(width: 6.0),
+              Text(
+                '$count ${count == 1 ? 'ad' : 'ads'} · ${_formatDuration(totalSeconds)}',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: ambient.aiTeal,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8.0),
+        Flexible(
+          child: Text(
+            'will be skipped',
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatDuration(int totalSeconds) {
+    final minutes = totalSeconds ~/ 60;
+    final seconds = totalSeconds % 60;
+    if (minutes > 0) {
+      return '${minutes}m ${seconds.toString().padLeft(2, '0')}s';
+    }
+    return '${seconds}s';
   }
 }

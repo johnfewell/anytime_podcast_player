@@ -375,6 +375,9 @@ class DefaultAudioPlayerService extends AudioPlayerService {
     _promptedAdSegmentKey = null;
     _activeAdSegment = null;
 
+    // Track the running "time saved" stat surfaced on the AI ad-skip screen.
+    recordAdSkipStat(settingsService: settingsService, segment: activeSegment);
+
     await seek(
       position: Duration(milliseconds: _resolveAdSkipTargetMs(activeSegment)),
     );
@@ -1187,6 +1190,22 @@ class DefaultAudioPlayerService extends AudioPlayerService {
 
 @visibleForTesting
 String segmentKey(AdSegment segment) => '${segment.startMs}:${segment.endMs}';
+
+/// Accumulates the "time saved" / "ads skipped" running totals on the supplied
+/// [SettingsService] for a skipped [segment]. Extracted so the bookkeeping is
+/// unit-testable without the live audio backend.
+@visibleForTesting
+void recordAdSkipStat({
+  required SettingsService settingsService,
+  required AdSegment segment,
+}) {
+  final savedSeconds = ((segment.endMs - segment.startMs) / 1000).round();
+
+  if (savedSeconds > 0) {
+    settingsService.adSkipSavedSeconds = settingsService.adSkipSavedSeconds + savedSeconds;
+    settingsService.adSkipCount = settingsService.adSkipCount + 1;
+  }
+}
 
 @visibleForTesting
 AdSegment? findActiveAdSegment({

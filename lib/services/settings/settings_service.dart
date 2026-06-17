@@ -101,6 +101,26 @@ abstract class SettingsService {
 
   AdSkipMode get adSkipMode;
 
+  set adSkipCountdownSeconds(int seconds);
+
+  int get adSkipCountdownSeconds;
+
+  set adSkipNotify(bool notify);
+
+  bool get adSkipNotify;
+
+  set adSkipIncludeHostRead(bool include);
+
+  bool get adSkipIncludeHostRead;
+
+  set adSkipSavedSeconds(int seconds);
+
+  int get adSkipSavedSeconds;
+
+  set adSkipCount(int count);
+
+  int get adSkipCount;
+
   set openAiAnalysisModel(String model);
 
   String get openAiAnalysisModel;

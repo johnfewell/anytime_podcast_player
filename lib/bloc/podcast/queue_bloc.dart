@@ -27,6 +27,17 @@ class QueueBloc extends Bloc {
         var e = event.episode;
         if (e != null) {
           await audioPlayerService.addUpNextEpisode(e);
+
+          // Honour an explicit insert position (e.g. "Play next" → front of the
+          // queue). addUpNextEpisode appends, so reposition afterwards.
+          final target = event.position;
+          if (target != null && target >= 0) {
+            final state = await audioPlayerService.queueState!.first;
+            final from = state.queue.indexWhere((episode) => episode.guid == e.guid);
+            if (from >= 0 && from != target) {
+              await audioPlayerService.moveUpNextEpisode(e, from, target);
+            }
+          }
         }
       } else if (event is QueueAddLatestEpisodeEvent) {
         var e = event.podcast;

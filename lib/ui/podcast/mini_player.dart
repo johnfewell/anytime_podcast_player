@@ -3,13 +3,16 @@
 // found in the LICENSE file.
 
 import 'dart:async';
+import 'dart:ui' show ImageFilter;
 
 import 'package:anytime/bloc/podcast/audio_bloc.dart';
+import 'package:anytime/bloc/settings/settings_bloc.dart';
+import 'package:anytime/entities/app_settings.dart';
 import 'package:anytime/entities/episode.dart';
 import 'package:anytime/l10n/L.dart';
 import 'package:anytime/services/audio/audio_player_service.dart';
 import 'package:anytime/ui/podcast/now_playing.dart';
-import 'package:anytime/ui/widgets/expressive_linear_progress_indicator.dart';
+import 'package:anytime/ui/themes.dart';
 import 'package:anytime/ui/widgets/placeholder_builder.dart';
 import 'package:anytime/ui/widgets/podcast_image.dart';
 import 'package:flutter/material.dart';
@@ -73,6 +76,7 @@ class _MiniPlayerBuilderState extends State<_MiniPlayerBuilder> with SingleTicke
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final ambient = AmbientColors.of(context);
     final audioBloc = Provider.of<AudioBloc>(context, listen: false);
     final padding = MediaQuery.paddingOf(context);
     final placeholderBuilder = PlaceholderBuilder.of(context);
@@ -115,26 +119,27 @@ class _MiniPlayerBuilderState extends State<_MiniPlayerBuilder> with SingleTicke
           label: L.of(context)!.semantics_mini_player_header,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12.0, 0.0, 12.0, 8.0),
-            child: Container(
-              height: 76,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerLowest,
-                borderRadius: BorderRadius.circular(24.0),
-                boxShadow: [
-                  BoxShadow(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.08),
-                    blurRadius: 24.0,
-                    offset: const Offset(0, 8),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20.0),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 16.0, sigmaY: 16.0),
+                child: Container(
+                  height: 76,
+                  decoration: BoxDecoration(
+                    color: ambient.frostedSurface,
+                    borderRadius: BorderRadius.circular(20.0),
+                    border: Border.all(color: ambient.frostedBorder),
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.colorScheme.shadow.withValues(alpha: 0.08),
+                        blurRadius: 24.0,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    StreamBuilder<Episode?>(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                    child: StreamBuilder<Episode?>(
                         stream: audioBloc.nowPlaying,
                         initialData: audioBloc.nowPlaying?.valueOrNull,
                         builder: (context, snapshot) {
@@ -147,18 +152,18 @@ class _MiniPlayerBuilderState extends State<_MiniPlayerBuilder> with SingleTicke
                                   mainAxisAlignment: MainAxisAlignment.start,
                                   children: <Widget>[
                                     SizedBox(
-                                      height: 58.0,
-                                      width: 58.0,
+                                      height: 54.0,
+                                      width: 54.0,
                                       child: ExcludeSemantics(
                                         child: Padding(
-                                          padding: const EdgeInsets.all(8.0),
+                                          padding: const EdgeInsets.all(6.0),
                                           child: snapshot.hasData
                                               ? PodcastImage(
                                                   key: Key('mini${snapshot.data!.imageUrl}'),
                                                   url: snapshot.data!.imageUrl!,
-                                                  width: 58.0,
-                                                  height: 58.0,
-                                                  borderRadius: 16.0,
+                                                  width: 54.0,
+                                                  height: 54.0,
+                                                  borderRadius: 12.0,
                                                   placeholder: placeholderBuilder != null
                                                       ? placeholderBuilder.builder()(context)
                                                       : const Image(
@@ -174,6 +179,7 @@ class _MiniPlayerBuilderState extends State<_MiniPlayerBuilder> with SingleTicke
                                         ),
                                       ),
                                     ),
+                                    const SizedBox(width: 4.0),
                                     Expanded(
                                         flex: 1,
                                         child: Column(
@@ -185,23 +191,18 @@ class _MiniPlayerBuilderState extends State<_MiniPlayerBuilder> with SingleTicke
                                               overflow: TextOverflow.ellipsis,
                                               style: theme.textTheme.titleSmall,
                                             ),
-                                            Padding(
-                                              padding: const EdgeInsets.only(top: 4.0),
-                                              child: Text(
-                                                snapshot.data?.author ?? '',
-                                                overflow: TextOverflow.ellipsis,
-                                                style: theme.textTheme.bodySmall,
-                                              ),
-                                            ),
+                                            const SizedBox(height: 3.0),
+                                            _MiniPlayerSubtitle(author: snapshot.data?.author ?? ''),
                                           ],
                                         )),
+                                    const SizedBox(width: 8.0),
                                     SizedBox(
-                                      height: 52.0,
-                                      width: 52.0,
+                                      height: 48.0,
+                                      width: 48.0,
                                       child: TextButton(
                                         style: TextButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(horizontal: 0.0),
-                                          backgroundColor: theme.colorScheme.surfaceContainerLow,
+                                          padding: EdgeInsets.zero,
+                                          backgroundColor: ambient.controlFill,
                                           shape: const CircleBorder(),
                                         ),
                                         onPressed: () {
@@ -212,78 +213,23 @@ class _MiniPlayerBuilderState extends State<_MiniPlayerBuilder> with SingleTicke
                                         child: Icon(
                                           Icons.forward_30,
                                           semanticLabel: L.of(context)!.fast_forward_button_label,
-                                          size: 36.0,
+                                          size: 30.0,
+                                          color: theme.colorScheme.onSurface,
                                         ),
                                       ),
                                     ),
-                                    SizedBox(
-                                      height: 52.0,
-                                      width: 52.0,
-                                      child: TextButton(
-                                        style: TextButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(horizontal: 0.0),
-                                          backgroundColor: theme.colorScheme.primary,
-                                          foregroundColor: theme.colorScheme.onPrimary,
-                                          shape: const CircleBorder(),
-                                        ),
-                                        onPressed: () {
-                                          if (playing) {
-                                            _pause(audioBloc);
-                                          } else {
-                                            _play(audioBloc);
-                                          }
-                                        },
-                                        child: AnimatedIcon(
-                                          semanticLabel: playing
-                                              ? L.of(context)!.pause_button_label
-                                              : L.of(context)!.play_button_label,
-                                          size: 48.0,
-                                          icon: AnimatedIcons.play_pause,
-                                          color: theme.colorScheme.onPrimary,
-                                          progress: _playPauseController,
-                                        ),
-                                      ),
+                                    const SizedBox(width: 4.0),
+                                    _MiniPlayerPlayControl(
+                                      playing: playing,
+                                      controller: _playPauseController,
+                                      onPlay: () => _play(audioBloc),
+                                      onPause: () => _pause(audioBloc),
                                     ),
                                   ],
                                 );
                               });
                         }),
-                    StreamBuilder<AudioState>(
-                        stream: audioBloc.playingState,
-                        initialData: AudioState.none,
-                        builder: (context, stateSnapshot) {
-                          final animateIndicator =
-                              stateSnapshot.data == AudioState.playing || stateSnapshot.data == AudioState.buffering;
-
-                          return StreamBuilder<PositionState>(
-                              stream: audioBloc.playPosition,
-                              initialData: audioBloc.playPosition?.valueOrNull,
-                              builder: (context, snapshot) {
-                                var position = snapshot.hasData ? snapshot.data!.position : const Duration(seconds: 0);
-                                var length = snapshot.hasData ? snapshot.data!.length : const Duration(seconds: 0);
-                                double? progress;
-
-                                if (length.inMilliseconds > 0) {
-                                  progress = position.inMilliseconds / length.inMilliseconds;
-                                }
-
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 6.0),
-                                  child: ExpressiveLinearProgressIndicator(
-                                    value: progress,
-                                    minHeight: 4.0,
-                                    amplitude: 2.4,
-                                    frequency: 12.0,
-                                    phaseCycles: 2.6,
-                                    animationDuration: const Duration(milliseconds: 600),
-                                    animated: animateIndicator,
-                                    color: theme.colorScheme.primary,
-                                    backgroundColor: theme.colorScheme.surfaceContainerHigh,
-                                  ),
-                                );
-                              });
-                        }),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -330,5 +276,137 @@ class _MiniPlayerBuilderState extends State<_MiniPlayerBuilder> with SingleTicke
 
   void _pause(AudioBloc audioBloc) {
     audioBloc.transitionState(TransitionState.pause);
+  }
+}
+
+/// The mini-player's second line: shows an "AI ad-skip on" cue (teal dot) when
+/// ad-skipping is enabled, otherwise the episode author.
+class _MiniPlayerSubtitle extends StatelessWidget {
+  final String author;
+
+  const _MiniPlayerSubtitle({required this.author});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ambient = AmbientColors.of(context);
+    final adSkipEnabled = _adSkipEnabled(context);
+
+    if (adSkipEnabled) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6.0,
+            height: 6.0,
+            decoration: BoxDecoration(color: ambient.aiTeal, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6.0),
+          Flexible(
+            child: Text(
+              'AI ad-skip on',
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Text(
+      author,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.bodySmall,
+    );
+  }
+
+  bool _adSkipEnabled(BuildContext context) {
+    try {
+      return Provider.of<SettingsBloc>(context, listen: false).currentSettings.adSkipMode != AdSkipMode.disabled;
+    } catch (_) {
+      return false;
+    }
+  }
+}
+
+/// The play/pause control wrapped in a ring that shows playback position —
+/// replacing the old top-edge progress bar (a loading-indicator anti-pattern).
+class _MiniPlayerPlayControl extends StatelessWidget {
+  final bool playing;
+  final AnimationController controller;
+  final VoidCallback onPlay;
+  final VoidCallback onPause;
+
+  const _MiniPlayerPlayControl({
+    required this.playing,
+    required this.controller,
+    required this.onPlay,
+    required this.onPause,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final audioBloc = Provider.of<AudioBloc>(context, listen: false);
+
+    return SizedBox(
+      width: 46.0,
+      height: 46.0,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned.fill(
+            child: StreamBuilder<PositionState>(
+              stream: audioBloc.playPosition,
+              initialData: audioBloc.playPosition?.valueOrNull,
+              builder: (context, snapshot) {
+                final position = snapshot.hasData ? snapshot.data!.position : Duration.zero;
+                final length = snapshot.hasData ? snapshot.data!.length : Duration.zero;
+                double? progress;
+                if (length.inMilliseconds > 0) {
+                  progress = (position.inMilliseconds / length.inMilliseconds).clamp(0.0, 1.0);
+                }
+
+                return CircularProgressIndicator(
+                  value: progress,
+                  strokeWidth: 2.5,
+                  strokeCap: StrokeCap.round,
+                  backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
+                  valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
+                );
+              },
+            ),
+          ),
+          SizedBox(
+            width: 36.0,
+            height: 36.0,
+            child: TextButton(
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                backgroundColor: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
+                shape: const CircleBorder(),
+                minimumSize: const Size(36.0, 36.0),
+              ),
+              onPressed: () {
+                if (playing) {
+                  onPause();
+                } else {
+                  onPlay();
+                }
+              },
+              child: AnimatedIcon(
+                semanticLabel: playing ? L.of(context)!.pause_button_label : L.of(context)!.play_button_label,
+                size: 20.0,
+                icon: AnimatedIcons.play_pause,
+                color: colorScheme.onPrimary,
+                progress: controller,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

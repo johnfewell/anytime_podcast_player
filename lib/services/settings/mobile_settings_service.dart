@@ -326,6 +326,51 @@ class MobileSettingsService extends SettingsService {
   }
 
   @override
+  set adSkipCountdownSeconds(int seconds) {
+    _sharedPreferences.setInt('adSkipCountdownSeconds', seconds);
+    settingsNotifier.sink.add('adSkipCountdownSeconds');
+  }
+
+  @override
+  int get adSkipCountdownSeconds => _sharedPreferences.getInt('adSkipCountdownSeconds') ?? 3;
+
+  @override
+  set adSkipNotify(bool notify) {
+    _sharedPreferences.setBool('adSkipNotify', notify);
+    settingsNotifier.sink.add('adSkipNotify');
+  }
+
+  @override
+  bool get adSkipNotify => _sharedPreferences.getBool('adSkipNotify') ?? true;
+
+  @override
+  set adSkipIncludeHostRead(bool include) {
+    _sharedPreferences.setBool('adSkipIncludeHostRead', include);
+    settingsNotifier.sink.add('adSkipIncludeHostRead');
+  }
+
+  @override
+  bool get adSkipIncludeHostRead => _sharedPreferences.getBool('adSkipIncludeHostRead') ?? false;
+
+  @override
+  set adSkipSavedSeconds(int seconds) {
+    _sharedPreferences.setInt('adSkipSavedSeconds', seconds);
+    settingsNotifier.sink.add('adSkipSavedSeconds');
+  }
+
+  @override
+  int get adSkipSavedSeconds => _sharedPreferences.getInt('adSkipSavedSeconds') ?? 0;
+
+  @override
+  set adSkipCount(int count) {
+    _sharedPreferences.setInt('adSkipCount', count);
+    settingsNotifier.sink.add('adSkipCount');
+  }
+
+  @override
+  int get adSkipCount => _sharedPreferences.getInt('adSkipCount') ?? 0;
+
+  @override
   set openAiAnalysisModel(String model) {
     _sharedPreferences.setString('openAiAnalysisModel', model);
     settingsNotifier.sink.add('openAiAnalysisModel');
