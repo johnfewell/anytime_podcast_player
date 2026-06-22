@@ -5,6 +5,7 @@
 import 'dart:async';
 
 import 'package:anytime/bloc/podcast/episode_bloc.dart';
+import 'package:anytime/state/bloc_state.dart';
 import 'package:anytime/entities/ad_segment.dart';
 import 'package:anytime/entities/app_settings.dart';
 import 'package:anytime/entities/episode.dart';
@@ -449,6 +450,90 @@ void main() {
       bloc.dispose();
     });
   });
+
+  group('EpisodeBloc downloads (F-DL-02)', () {
+    EpisodeBloc buildBloc(_FakePodcastService podcastService) => EpisodeBloc(
+          podcastService: podcastService,
+          audioPlayerService: _FakeAudioPlayerService(),
+          analysisService: _FakeEpisodeAnalysisService(
+            submitResponse: EpisodeAnalysisSubmitResponse(
+              jobId: 'noop',
+              status: EpisodeAnalysisJobStatus.queued,
+            ),
+            pollResponses: const <EpisodeAnalysisStatusResponse>[],
+          ),
+          settingsService: _FakeSettingsService(),
+          transcriptionService: _FakeEpisodeTranscriptionService(),
+          analysisPollInterval: Duration.zero,
+        );
+
+    Episode download(String guid) => Episode(
+          guid: guid,
+          pguid: 'pod-1',
+          podcast: 'Podcast',
+          title: 'Episode $guid',
+          contentUrl: 'https://cdn.example.com/$guid.mp3',
+          downloadPercentage: 100,
+        );
+
+    List<BlocPopulatedState<List<Episode>>> populated(List<BlocState> states) =>
+        states.whereType<BlocPopulatedState<List<Episode>>>().toList();
+
+    test('fetchDownloads emits Loading then the downloaded episodes', () async {
+      final podcastService = _FakePodcastService(repository: _FakeRepository())
+        ..downloads = [download('a'), download('b')];
+      final bloc = buildBloc(podcastService);
+      addTearDown(bloc.dispose);
+
+      final states = <BlocState>[];
+      final sub = bloc.downloads!.listen(states.add);
+
+      bloc.fetchDownloads(false);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(states.whereType<BlocLoadingState>(), hasLength(1));
+      expect(populated(states).last.results!.map((e) => e.guid), ['a', 'b']);
+
+      await sub.cancel();
+    });
+
+    test('an empty download set yields an empty populated list', () async {
+      final podcastService = _FakePodcastService(repository: _FakeRepository());
+      final bloc = buildBloc(podcastService);
+      addTearDown(bloc.dispose);
+
+      final states = <BlocState>[];
+      final sub = bloc.downloads!.listen(states.add);
+
+      bloc.fetchDownloads(false);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(populated(states).last.results!, isEmpty);
+
+      await sub.cancel();
+    });
+
+    test('deleteDownload removes the episode and refreshes the list', () async {
+      final podcastService = _FakePodcastService(repository: _FakeRepository())
+        ..downloads = [download('a'), download('b')];
+      final bloc = buildBloc(podcastService);
+      addTearDown(bloc.dispose);
+
+      final states = <BlocState>[];
+      final sub = bloc.downloads!.listen(states.add);
+
+      bloc.fetchDownloads(false);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      bloc.deleteDownload(download('a'));
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+
+      expect(podcastService.deletedDownloadGuids, ['a']);
+      expect(populated(states).last.results!.map((e) => e.guid), ['b']);
+
+      await sub.cancel();
+    });
+  });
 }
 
 class _FakeEpisodeAnalysisService implements EpisodeAnalysisService {
@@ -523,6 +608,19 @@ class _FakePodcastService implements PodcastService {
 
   @override
   Stream<LibraryState> get libraryListener => const Stream<LibraryState>.empty();
+
+  /// Backing list for the downloads-list feature (F-DL-02).
+  List<Episode> downloads = <Episode>[];
+  final List<String> deletedDownloadGuids = <String>[];
+
+  @override
+  Future<List<Episode>> loadDownloads() async => downloads;
+
+  @override
+  Future<void> deleteDownload(Episode episode) async {
+    deletedDownloadGuids.add(episode.guid);
+    downloads = downloads.where((e) => e.guid != episode.guid).toList();
+  }
 
   @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -650,6 +748,9 @@ class _FakeAudioPlayerService implements AudioPlayerService {
 
   @override
   Stream<Sleep>? sleepStream;
+
+  @override
+  Future<bool> removeUpNextEpisode(Episode episode) async => true;
 
   @override
   noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

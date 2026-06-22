@@ -59,6 +59,10 @@ class SettingsBloc extends Bloc {
 
   var _currentSettings = AppSettings.sensibleDefaults();
 
+  /// Listens for settings changed outside this bloc (e.g. the running ad-skip
+  /// stats written directly by the audio backend) so we can refresh and re-emit.
+  StreamSubscription<String>? _settingsListenerSubscription;
+
   SettingsBloc({
     required this.settingsService,
     required this.notificationService,
@@ -117,6 +121,20 @@ class SettingsBloc extends Bloc {
     );
 
     _settings.add(_currentSettings);
+
+    // The running ad-skip stats (saved seconds / skip count) are written
+    // directly to the SettingsService by the audio backend when an ad is
+    // skipped, bypassing this bloc. Refresh them when the service signals a
+    // change so the AI ad-skip screen's live stat reflects in-session skips.
+    _settingsListenerSubscription = settingsService.settingsListener.listen((key) {
+      if (key == 'adSkipSavedSeconds' || key == 'adSkipCount') {
+        _currentSettings = _currentSettings.copyWith(
+          adSkipSavedSeconds: settingsService.adSkipSavedSeconds,
+          adSkipCount: settingsService.adSkipCount,
+        );
+        _settings.add(_currentSettings);
+      }
+    });
 
     _theme.listen((String mode) {
       _currentSettings = _currentSettings.copyWith(theme: mode);
@@ -478,6 +496,7 @@ class SettingsBloc extends Bloc {
     _backgroundAnalysisDiskCostAccepted.close();
     _onDemandAnalysisEnabled.close();
     _showAnalysisHistory.close();
+    _settingsListenerSubscription?.cancel();
     _settings.close();
   }
 }

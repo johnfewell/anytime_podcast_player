@@ -91,11 +91,27 @@ class MockSettingsService extends SettingsService {
   @override
   bool adSkipIncludeHostRead = false;
 
-  @override
-  int adSkipSavedSeconds = 0;
+  int _adSkipSavedSeconds = 0;
 
   @override
-  int adSkipCount = 0;
+  int get adSkipSavedSeconds => _adSkipSavedSeconds;
+
+  @override
+  set adSkipSavedSeconds(int seconds) {
+    _adSkipSavedSeconds = seconds;
+    _settingsNotifier.add('adSkipSavedSeconds');
+  }
+
+  int _adSkipCount = 0;
+
+  @override
+  int get adSkipCount => _adSkipCount;
+
+  @override
+  set adSkipCount(int count) {
+    _adSkipCount = count;
+    _settingsNotifier.add('adSkipCount');
+  }
 
   @override
   String openAiAnalysisModel = 'gpt-4.1-mini';
@@ -121,6 +137,8 @@ class MockSettingsService extends SettingsService {
   @override
   bool showAnalysisHistory = false;
 
+  final PublishSubject<String> _settingsNotifier = PublishSubject<String>();
+
   @override
-  Stream<String> get settingsListener => PublishSubject<String>().stream;
+  Stream<String> get settingsListener => _settingsNotifier.stream;
 }

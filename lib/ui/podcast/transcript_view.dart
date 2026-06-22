@@ -39,6 +39,7 @@ class _TranscriptViewState extends State<TranscriptView> {
   final ScrollOffsetListener _scrollOffsetListener = ScrollOffsetListener.create(recordProgrammaticScrolls: false);
   final _transcriptSearchController = TextEditingController();
   late StreamSubscription<PositionState> _positionSubscription;
+  StreamSubscription<void>? _scrollOffsetSubscription;
   int position = 0;
   bool autoScroll = true;
   bool autoScrollEnabled = true;
@@ -56,8 +57,8 @@ class _TranscriptViewState extends State<TranscriptView> {
     Subtitle? subtitle;
     int index = 0;
     // If the user initiates scrolling, disable auto scroll.
-    _scrollOffsetListener.changes.listen((event) {
-      if (!scrolling) {
+    _scrollOffsetSubscription = _scrollOffsetListener.changes.listen((event) {
+      if (!scrolling && mounted) {
         setState(() {
           autoScroll = false;
         });
@@ -169,8 +170,13 @@ class _TranscriptViewState extends State<TranscriptView> {
 
   @override
   void dispose() {
-    super.dispose();
+    // Cancel subscriptions and dispose controllers before super.dispose() so
+    // late stream events can't call setState on a defunct State. The scroll
+    // offset listener in particular was previously never cancelled.
+    _scrollOffsetSubscription?.cancel();
     _positionSubscription.cancel();
+    _transcriptSearchController.dispose();
+    super.dispose();
   }
 
   /// Maps the subtitle index where each AI-detected ad segment begins to that

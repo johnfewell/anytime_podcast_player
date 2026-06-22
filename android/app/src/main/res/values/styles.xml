@@ -18,5 +18,7 @@
         <item name="android:windowNoTitle">true</item>
         <item name="android:statusBarColor">@color/splash</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <!-- Warm-paper splash is light, so request dark status-bar icons -->
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 </resources>

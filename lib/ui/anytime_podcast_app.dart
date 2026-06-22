@@ -9,6 +9,7 @@ import 'dart:ui' as ui;
 import 'package:anytime/api/podcast/mobile_podcast_api.dart';
 import 'package:anytime/api/podcast/podcast_api.dart';
 import 'package:anytime/bloc/discovery/discovery_bloc.dart';
+import 'package:anytime/bloc/discovery/discovery_state_event.dart';
 import 'package:anytime/bloc/podcast/audio_bloc.dart';
 import 'package:anytime/bloc/podcast/episode_bloc.dart';
 import 'package:anytime/bloc/podcast/opml_bloc.dart';
@@ -269,7 +270,7 @@ class AnytimePodcastAppState extends State<AnytimePodcastApp> {
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         showSemanticsDebugger: false,
-        title: 'Anytime Podcast Player',
+        title: 'Ambient',
         scaffoldMessengerKey: appScaffoldMessengerKey,
         navigatorObservers: [NavigationRouteObserver()],
         localizationsDelegates: const <LocalizationsDelegate<Object>>[
@@ -293,7 +294,7 @@ class AnytimePodcastAppState extends State<AnytimePodcastApp> {
         theme: theme,
         // Uncomment builder below to enable accessibility checker tool.
         // builder: (context, child) => AccessibilityTools(child: child),
-        home: const AnytimeHomePage(title: 'Anytime Podcast Player'),
+        home: const AnytimeHomePage(title: 'Ambient'),
       ),
     );
   }
@@ -336,6 +337,17 @@ class _AnytimeHomePageState extends State<AnytimeHomePage> with WidgetsBindingOb
 
     /// Handle deep links
     _setupLinkListener();
+
+    /// Warm the Discover charts in the background as soon as the app opens, so
+    /// the first visit to the Discover tab is instant — no spinner, no layout
+    /// shift. The BLoC caches the result, so this is a one-off startup fetch.
+    final discoveryBloc = Provider.of<DiscoveryBloc>(context, listen: false);
+    discoveryBloc.discover(DiscoveryChartEvent(
+      count: Discovery.fetchSize,
+      genre: discoveryBloc.selectedGenre.genre,
+      countryCode: PlatformDispatcher.instance.locale.countryCode?.toLowerCase() ?? '',
+      languageCode: PlatformDispatcher.instance.locale.languageCode,
+    ));
 
     /// Handle library updates and enable/disable the manual refresh menu item as appropriate.
     Provider.of<PodcastBloc>(context, listen: false).libraryListener.listen((d) {
@@ -683,7 +695,7 @@ class _AnytimeHomePageState extends State<AnytimeHomePage> with WidgetsBindingOb
       case 'about':
         showAboutDialog(
             context: context,
-            applicationName: 'Anytime Podcast Player',
+            applicationName: 'Ambient',
             applicationVersion: 'v${Environment.projectVersion}',
             applicationIcon: Image.asset(
               'assets/images/anytime-logo-s.png',
