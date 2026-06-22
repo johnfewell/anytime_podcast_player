@@ -66,7 +66,7 @@ android {
         versionName flutterVersionName
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         manifestPlaceholders = [
-            appLabel: "Anytime Player"
+            appLabel: "Ambient"
         ]
     }
 
@@ -83,7 +83,7 @@ android {
         debug {
             applicationIdSuffix ".debug"
             versionNameSuffix "-debug"
-            manifestPlaceholders.appLabel = "Anytime Player Debug"
+            manifestPlaceholders.appLabel = "Ambient Debug"
             signingConfig signingConfigs.debug
             shrinkResources false
         }
@@ -91,11 +91,11 @@ android {
         profile {
             applicationIdSuffix ".profile"
             versionNameSuffix "-profile"
-            manifestPlaceholders.appLabel = "Anytime Player Profile"
+            manifestPlaceholders.appLabel = "Ambient Profile"
         }
 
         release {
-            manifestPlaceholders.appLabel = "Anytime Player"
+            manifestPlaceholders.appLabel = "Ambient"
             signingConfig signingConfigs.release
             shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'

@@ -5,6 +5,8 @@
 import 'package:anytime/bloc/bloc.dart';
 import 'package:anytime/bloc/discovery/discovery_state_event.dart';
 import 'package:anytime/services/podcast/podcast_service.dart';
+import 'dart:async';
+
 import 'package:logging/logging.dart';
 import 'package:podcast_search/podcast_search.dart' as podcast_search;
 import 'package:rxdart/rxdart.dart';
@@ -28,8 +30,13 @@ class DiscoveryBloc extends Bloc {
   /// The last genre to be passed in a [DiscoveryEvent].
   final _selectedGenre = BehaviorSubject<SelectedGenre>(sync: true);
 
-  /// The last fetched results.
-  Stream<DiscoveryState>? _discoveryResults;
+  /// The latest discovery state. A [BehaviorSubject] so a freshly-mounted
+  /// Discover tab immediately receives the last populated state instead of
+  /// re-running the loading spinner — this is what kills the layout shift when
+  /// you return to Discover, and lets us preload it in the background at startup.
+  final _discoveryOutput = BehaviorSubject<DiscoveryState>();
+
+  StreamSubscription<DiscoveryState>? _chartsSubscription;
 
   /// To save bandwidth we cache the results.
   podcast_search.SearchResult? _resultsCache;
@@ -42,7 +49,9 @@ class DiscoveryBloc extends Bloc {
   }
 
   void _init() {
-    _discoveryResults = _discoveryInput.switchMap<DiscoveryState>((DiscoveryEvent event) => _charts(event));
+    _chartsSubscription = _discoveryInput
+        .switchMap<DiscoveryState>((DiscoveryEvent event) => _charts(event))
+        .listen(_discoveryOutput.add);
     _selectedGenre.value = SelectedGenre(index: 0, genre: '');
     _genres.onListen = _loadGenres;
   }
@@ -52,12 +61,17 @@ class DiscoveryBloc extends Bloc {
   }
 
   Stream<DiscoveryState> _charts(DiscoveryEvent event) async* {
-    yield DiscoveryLoadingState();
-
     if (event is DiscoveryChartEvent) {
-      if (_resultsCache == null ||
-          event.genre != _lastGenre ||
-          DateTime.now().difference(_resultsCache!.processedTime).inMinutes > cacheMinutes) {
+      final cacheValid = _resultsCache != null &&
+          event.genre == _lastGenre &&
+          DateTime.now().difference(_resultsCache!.processedTime).inMinutes <= cacheMinutes;
+
+      // Only surface the loading spinner when we genuinely have to hit the
+      // network. A warm cache (including the startup preload) goes straight to
+      // the populated state, so switching back to Discover doesn't flash.
+      if (!cacheValid) {
+        yield DiscoveryLoadingState();
+
         _lastGenre = event.genre;
         _lastIndex = podcastService.genres().indexOf(_lastGenre);
 
@@ -86,12 +100,16 @@ class DiscoveryBloc extends Bloc {
 
   @override
   void dispose() {
+    _chartsSubscription?.cancel();
     _discoveryInput.close();
+    _discoveryOutput.close();
+    _genres.close();
+    _selectedGenre.close();
   }
 
   void Function(DiscoveryEvent) get discover => _discoveryInput.add;
 
-  Stream<DiscoveryState>? get results => _discoveryResults;
+  Stream<DiscoveryState>? get results => _discoveryOutput.stream;
 
   Stream<List<String>> get genres => _genres.stream;
 

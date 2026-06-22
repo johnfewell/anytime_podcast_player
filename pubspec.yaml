@@ -75,17 +75,19 @@ dev_dependencies:
     sdk: flutter
 
 flutter_icons:
-  image_path_android: "assets/images/anytime-logo.png"
-  image_path_ios: "assets/images/anytime-logo-ios.png"
-  remove_alpha_ios: true
   android: true
   ios: true
+  image_path: "assets/images/ambient-icon.png"
+  remove_alpha_ios: true
+  adaptive_icon_background: "#0075de"
+  adaptive_icon_foreground: "assets/images/ambient-icon-fg.png"
 
 flutter:
   uses-material-design: true
 
   assets:
-    - assets/images/anytime-logo.png
+    - assets/images/ambient-icon.png
+    - assets/images/ambient-mark.png
     - assets/images/anytime-logo-s.png
     - assets/images/anytime-placeholder-logo.png
 

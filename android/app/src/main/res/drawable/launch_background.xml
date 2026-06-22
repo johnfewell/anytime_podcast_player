@@ -10,10 +10,10 @@
 <!--    <item android:drawable="@android:color/white" />-->
     <item android:drawable="@color/splash" />
 
-    <!-- You can insert your own image assets here -->
+    <!-- Centered Ambient ripple mark (blue on the warm-paper field) -->
     <item>
         <bitmap
             android:gravity="center"
-            android:src="@mipmap/ic_launcher_foreground" />
+            android:src="@drawable/splash_mark" />
     </item>
 </layer-list>
