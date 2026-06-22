@@ -427,6 +427,7 @@ class DefaultAudioPlayerService extends AudioPlayerService {
 
     _queue.insert(newIndex, oldEpisode);
     _updateQueueState();
+    moved = true;
 
     return moved;
   }

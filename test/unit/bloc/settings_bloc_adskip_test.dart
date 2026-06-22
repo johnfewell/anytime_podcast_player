@@ -90,4 +90,43 @@ void main() {
       expect(settings.adSkipMode, settingsService.adSkipMode);
     });
   });
+
+  group('SettingsBloc live ad-skip stats', () {
+    // The audio backend writes the running "time saved" / "ads skipped" totals
+    // straight to the SettingsService, bypassing the bloc. The bloc must pick
+    // these up via the settings listener so the AI ad-skip screen's hero stat
+    // updates within the session rather than only after a restart.
+    test('re-emits when adSkipSavedSeconds changes outside the bloc', () async {
+      final bloc = buildBloc();
+      addTearDown(bloc.dispose);
+      await Future<void>.delayed(Duration.zero);
+
+      final emitted = <int>[];
+      final subscription = bloc.settings.map((s) => s.adSkipSavedSeconds).listen(emitted.add);
+      addTearDown(subscription.cancel);
+
+      // Simulate recordAdSkipStat accumulating a skipped break.
+      settingsService.adSkipSavedSeconds = 42;
+      await Future<void>.delayed(Duration.zero);
+
+      expect(bloc.currentSettings.adSkipSavedSeconds, 42);
+      expect(emitted, contains(42));
+    });
+
+    test('re-emits when adSkipCount changes outside the bloc', () async {
+      final bloc = buildBloc();
+      addTearDown(bloc.dispose);
+      await Future<void>.delayed(Duration.zero);
+
+      final emitted = <int>[];
+      final subscription = bloc.settings.map((s) => s.adSkipCount).listen(emitted.add);
+      addTearDown(subscription.cancel);
+
+      settingsService.adSkipCount = 3;
+      await Future<void>.delayed(Duration.zero);
+
+      expect(bloc.currentSettings.adSkipCount, 3);
+      expect(emitted, contains(3));
+    });
+  });
 }
